@@ -1140,7 +1140,46 @@ local Library, ThemeManager, SaveManager = (function()
     function SaveManager:IgnoreThemeSettings() end
     function SaveManager:SetIgnoreIndexes(l) for _, i in ipairs(l) do self._ignore[i] = true end end
     function SaveManager:SetFolder(f) self._folder = f end
-    function SaveManager:LoadAutoloadConfig() end
+    function SaveManager:_collect()
+        local data = {}
+        for idx, o in pairs(Toggles) do data[idx] = { t = "b", v = o.Value } end
+        for idx, o in pairs(Options) do
+            if o.Type ~= "KeyPicker" and not self._ignore[idx] and idx:sub(1, 8) ~= "FwConfig" then
+                if o.Type == "ColorPicker" then data[idx] = { t = "c", v = { o.Value.R, o.Value.G, o.Value.B } }
+                else data[idx] = { t = "v", v = o.Value } end
+            end
+        end
+        return data
+    end
+    function SaveManager:Write(name)
+        local folder = self._folder
+        return pcall(function()
+            if not isfolder("FwSerial") then makefolder("FwSerial") end
+            if not isfolder(folder) then makefolder(folder) end
+            writefile(folder .. "/" .. name .. ".json", HttpService:JSONEncode(self:_collect()))
+        end)
+    end
+    function SaveManager:Read(name)
+        local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self._folder .. "/" .. name .. ".json")) end)
+        if not ok or type(data) ~= "table" then return false end
+        for idx, e in pairs(data) do
+            pcall(function()
+                if e.t == "b" and Toggles[idx] then Toggles[idx]:SetValue(e.v)
+                elseif e.t == "c" and Options[idx] then Options[idx]:SetValue(Color3.new(e.v[1], e.v[2], e.v[3]))
+                elseif e.t == "v" and Options[idx] then Options[idx]:SetValue(e.v) end
+            end)
+        end
+        return true
+    end
+    function SaveManager:LoadAutoloadConfig()
+        local marker = false
+        pcall(function() marker = isfile("FwSerial/autoload_last.txt") end)
+        if not marker then return end
+        if self:Read("_last") then
+            if Toggles.AutoLoadLast then Toggles.AutoLoadLast:SetValue(true) end
+            Library:Notify("Loaded last settings", 3)
+        end
+    end
     function SaveManager:BuildConfigSection(tab)
         local g = tab:AddRightGroupbox("Configs")
         g:AddInput("FwConfigName", { Text = "Config name" })
@@ -1151,41 +1190,21 @@ local Library, ThemeManager, SaveManager = (function()
             pcall(function()
                 for _, f in ipairs(listfiles(folder)) do
                     local n = tostring(f):match("([^/\\]+)%.json$")
-                    if n then table.insert(names, n) end
+                    if n and n:sub(1, 1) ~= "_" then table.insert(names, n) end
                 end
             end)
             Options.FwConfigList:SetValues(names)
         end
-        local ignore = self._ignore
         g:AddButton("Save config", function()
             local name = Options.FwConfigName.Value
             if name == "" then Library:Notify("Type a config name first.", 3) return end
-            local data = {}
-            for idx, o in pairs(Toggles) do data[idx] = { t = "b", v = o.Value } end
-            for idx, o in pairs(Options) do
-                if o.Type ~= "KeyPicker" and not ignore[idx] and idx:sub(1, 8) ~= "FwConfig" then
-                    if o.Type == "ColorPicker" then data[idx] = { t = "c", v = { o.Value.R, o.Value.G, o.Value.B } }
-                    else data[idx] = { t = "v", v = o.Value } end
-                end
-            end
-            local ok = pcall(function()
-                if not isfolder(folder) then makefolder(folder) end
-                writefile(folder .. "/" .. name .. ".json", HttpService:JSONEncode(data))
-            end)
+            local ok = self:Write(name)
             Library:Notify(ok and ("Saved " .. name) or "Save failed (executor has no file functions?)", 3)
             refresh()
         end)
         g:AddButton("Load config", function()
             local name = Options.FwConfigName.Value
-            local ok, data = pcall(function() return HttpService:JSONDecode(readfile(folder .. "/" .. name .. ".json")) end)
-            if not ok then Library:Notify("Could not load " .. tostring(name), 3) return end
-            for idx, e in pairs(data) do
-                pcall(function()
-                    if e.t == "b" and Toggles[idx] then Toggles[idx]:SetValue(e.v)
-                    elseif e.t == "c" and Options[idx] then Options[idx]:SetValue(Color3.new(e.v[1], e.v[2], e.v[3]))
-                    elseif e.t == "v" and Options[idx] then Options[idx]:SetValue(e.v) end
-                end)
-            end
+            if not self:Read(name) then Library:Notify("Could not load " .. tostring(name), 3) return end
             Library:Notify("Loaded " .. name, 3)
         end)
         g:AddButton("Refresh list", refresh)
@@ -1244,7 +1263,7 @@ local Tabs = {
 
 if IS_TRIBES then
     local TribesGroup = Tabs.Tribes:AddLeftGroupbox('Tribes 3v3')
-    TribesGroup:AddLabel('Tribes 3v3 detected.')
+    TribesGroup:AddLabel('coming in a bit devy... since im working for free like a slave i wont make all at once', true)
 end
 
 local function getChar(plr) return plr and plr.Character end
@@ -4006,6 +4025,68 @@ local function panic()
 end
 actionBinds.PanicKey = panic
 MenuGroup:AddButton('Panic (disable all features)', panic)
+
+MenuGroup:AddToggle('AutoLoadLast', { Text = 'Auto load last settings', Default = false,
+    Tooltip = 'Keeps your current settings saved and loads them every time the script starts (good for queueing).' })
+MenuGroup:AddToggle('AutoExecute', { Text = 'Auto execute on teleport', Default = false,
+    Tooltip = 'Re-runs the script after you teleport / join a match from the queue. Needs queue_on_teleport.' })
+MenuGroup:AddInput('AutoExecSource', { Text = 'Auto execute source (raw link or workspace file name)', Placeholder = 'https://.../FwSerial.lua  or  FwSerial.lua' })
+
+do
+    local MARKER = 'FwSerial/autoload_last.txt'
+    local queueFn = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+
+    local function saveLast()
+        if Toggles.AutoLoadLast.Value then SaveManager:Write('_last') end
+    end
+
+    local function buildAutoExec()
+        local src = tostring(Options.AutoExecSource.Value or ''):match('^%s*(.-)%s*$')
+        if src == '' then return nil end
+        if src:find('loadstring', 1, true) then return src end
+        if src:match('^https?://') then return ('loadstring(game:HttpGet(%q))()'):format(src) end
+        return ('loadstring(readfile(%q))()'):format(src)
+    end
+
+    Toggles.AutoLoadLast:OnChanged(function()
+        pcall(function()
+            if not isfolder('FwSerial') then makefolder('FwSerial') end
+            if Toggles.AutoLoadLast.Value then
+                writefile(MARKER, '1')
+                saveLast()
+            elseif isfile(MARKER) then
+                delfile(MARKER)
+            end
+        end)
+    end)
+
+    Toggles.AutoExecute:OnChanged(function()
+        if not Toggles.AutoExecute.Value then return end
+        if not queueFn then
+            Library:Notify('Your executor has no queue_on_teleport, auto execute will not work.', 5)
+        elseif not buildAutoExec() then
+            Library:Notify('Auto execute: fill in the source (raw link or file name) below.', 5)
+        end
+    end)
+
+    table.insert(connections, LocalPlayer.OnTeleport:Connect(function(state)
+        if Library.Unloaded or state ~= Enum.TeleportState.Started then return end
+        pcall(saveLast)
+        if Toggles.AutoExecute.Value and queueFn then
+            local code = buildAutoExec()
+            if code then pcall(queueFn, code) end
+        end
+    end))
+
+    task.spawn(function()
+        while not Library.Unloaded do
+            task.wait(10)
+            pcall(saveLast)
+        end
+    end)
+
+    Library:OnUnload(function() pcall(saveLast) end)
+end
 
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
