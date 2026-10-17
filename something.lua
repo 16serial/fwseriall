@@ -368,6 +368,31 @@ local Library, ThemeManager, SaveManager = (function()
         end
     end
 
+    local function finishCapture(o, name)
+        if o._done then return end
+        o._done = true
+        o.Value = name
+        o:_refresh()
+        fire(o.Changed, name)
+        task.delay(0.15, function()
+            if capturing == o then capturing = nil end
+            o._done = nil
+            o:_refresh()
+        end)
+    end
+
+    local EXTRA_BUTTONS = { MB3 = 0x04, MB4 = 0x05, MB5 = 0x06 }
+    table.insert(conns, game:GetService("RunService").RenderStepped:Connect(function()
+        if not capturing or capturing._done or not iskeypressed then return end
+        for name, vk in pairs(EXTRA_BUTTONS) do
+            local ok, down = pcall(iskeypressed, vk)
+            if ok and down == true then
+                finishCapture(capturing, name)
+                return
+            end
+        end
+    end))
+
     table.insert(conns, UIS.InputBegan:Connect(function(input, processed)
         if Library.Unloaded then return end
         if capturing then
@@ -379,15 +404,7 @@ local Library, ThemeManager, SaveManager = (function()
             elseif not name or processed then
                 return
             end
-            o._done = true
-            o.Value = name
-            o:_refresh()
-            fire(o.Changed, name)
-            task.delay(0.15, function()
-                if capturing == o then capturing = nil end
-                o._done = nil
-                o:_refresh()
-            end)
+            finishCapture(o, name)
             return
         end
 
@@ -1202,6 +1219,7 @@ local Camera = workspace.CurrentCamera
 local HAS_MOUSEMOVE = mousemoverel ~= nil
 local HAS_CLICK = mouse1click ~= nil
 local IS_MM2 = (game.PlaceId == 142823291) or (game.GameId == 66654135)
+local IS_TRIBES = (game.GameId == 72169370437173) or (game.PlaceId == 72169370437173)
 local HAS_HOOKS = hookmetamethod ~= nil and getnamecallmethod ~= nil and checkcaller ~= nil
 local GuiParent = (gethui and gethui()) or CoreGui
 
@@ -1219,9 +1237,15 @@ local Tabs = {
     Visuals = Window:AddTab('Visuals'),
     World = Window:AddTab('World'),
     MM2HVH = IS_MM2 and Window:AddTab('MM2HVH') or nil,
+    Tribes = IS_TRIBES and Window:AddTab('Tribes 3v3') or nil,
     Whitelist = Window:AddTab('Whitelist'),
     ['UI Settings'] = Window:AddTab('UI Settings'),
 }
+
+if IS_TRIBES then
+    local TribesGroup = Tabs.Tribes:AddLeftGroupbox('Tribes 3v3')
+    TribesGroup:AddLabel('Tribes 3v3 detected.')
+end
 
 local function getChar(plr) return plr and plr.Character end
 local function getHRP(plr)
@@ -1286,6 +1310,24 @@ local function safeCall(name, f, ...)
 end
 
 local Kit = {}
+
+function Kit.addPred(group, idx, label, default)
+    local slider = group:AddSlider(idx, { Text = label, Default = default, Min = 0, Max = 1, Rounding = 3 })
+    local box = group:AddInput(idx .. 'Box', { Text = label .. ' - type exact value (e.g. 0.126)', Default = tostring(default), Placeholder = '0.126' })
+    box:OnChanged(function(v)
+        local n = tonumber((tostring(v):gsub(',', '.')))
+        if not n then
+            box:SetValue(tostring(slider.Value))
+            return
+        end
+        slider:SetValue(n)
+        if tostring(slider.Value) ~= tostring(v) then box:SetValue(tostring(slider.Value)) end
+    end)
+    slider:OnChanged(function(v)
+        if box.Value ~= tostring(v) then box:SetValue(tostring(v)) end
+    end)
+    return slider
+end
 do
     local g = Instance.new("ScreenGui")
     g.Name = "FwSerialOverlay"
@@ -1450,11 +1492,7 @@ do
         end
     end
 
-    table.insert(inputConns, UserInputService.InputBegan:Connect(function(input, processed)
-        if Library.Unloaded then return end
-        if input.KeyCode == Enum.KeyCode.Escape then task.delay(0.05, pollKeyPickers) end
-        local name = inputName(input)
-        if not name or processed or inputBlocked() then return end
+    local function onPress(name)
         heldKeys[name] = true
 
         if name == 'MB1' and Toggles.ClickTP and Toggles.ClickTP.Value
@@ -1471,15 +1509,47 @@ do
             if opt and opt.Value == name then task.spawn(fn) end
         end
         if Options.AimbotKey and Options.AimKeyMode and Options.AimbotKey.Value == name
-            and Options.AimKeyMode.Value == 'Toggle' and Toggles.AimbotToggle.Value then
+            and Options.AimKeyMode.Value == 'Toggle' and Toggles.AimbotToggle.Value and not Library.Toggled then
             heldKeys.AimLatch = not heldKeys.AimLatch
         end
+    end
+
+    local function onRelease(name)
+        heldKeys[name] = nil
+    end
+
+    table.insert(inputConns, UserInputService.InputBegan:Connect(function(input, processed)
+        if Library.Unloaded then return end
+        if input.KeyCode == Enum.KeyCode.Escape then task.delay(0.05, pollKeyPickers) end
+        local name = inputName(input)
+        if not name or processed or inputBlocked() then return end
+        onPress(name)
     end))
 
     table.insert(inputConns, UserInputService.InputEnded:Connect(function(input)
         local name = inputName(input)
-        if name then heldKeys[name] = nil end
+        if name then onRelease(name) end
     end))
+
+    if iskeypressed then
+        local extraRaw = {}
+        local extraVK = { MB3 = 0x04, MB4 = 0x05, MB5 = 0x06 }
+        table.insert(inputConns, RunService.RenderStepped:Connect(function()
+            if Library.Unloaded then return end
+            if isrbxactive and not isrbxactive() then return end
+            for name, vk in pairs(extraVK) do
+                local ok, down = pcall(iskeypressed, vk)
+                down = ok and down == true
+                if down and not extraRaw[name] then
+                    extraRaw[name] = true
+                    if not inputBlocked() and not heldKeys[name] then onPress(name) end
+                elseif not down and extraRaw[name] then
+                    extraRaw[name] = false
+                    onRelease(name)
+                end
+            end
+        end))
+    end
 end
 
 local rayParams = RaycastParams.new()
@@ -1524,7 +1594,7 @@ CombatGroup:AddToggle('AimWallCheck', { Text = 'Wall Check', Default = false })
 CombatGroup:AddToggle('ShowFOV', { Text = 'Show FOV Circle', Default = true })
 CombatGroup:AddSlider('AimFOV', { Text = 'Aim FOV (pixels)', Default = 150, Min = 20, Max = 800, Rounding = 0 })
 CombatGroup:AddSlider('AimSmooth', { Text = 'Smoothness (1 = instant)', Default = 1, Min = 1, Max = 20, Rounding = 0 })
-CombatGroup:AddSlider('AimPrediction', { Text = 'Prediction (x0.01s)', Default = 0, Min = 0, Max = 30, Rounding = 0 })
+Kit.addPred(CombatGroup, 'AimPredict', 'Prediction (seconds)', 0)
 
 local SilentGroup = Tabs.Combat:AddRightGroupbox('Silent Aim')
 SilentGroup:AddToggle('SilentToggle', { Text = 'Enable Silent Aim', Default = false,
@@ -1540,7 +1610,7 @@ SilentGroup:AddToggle('SilentWall', { Text = 'Wall Check', Default = true })
 SilentGroup:AddToggle('ShowSilentFOV', { Text = 'Show silent FOV circle', Default = true })
 SilentGroup:AddSlider('SilentFOV', { Text = 'Silent FOV (pixels)', Default = 200, Min = 20, Max = 1000, Rounding = 0 })
 SilentGroup:AddSlider('SilentHit', { Text = 'Hit chance', Default = 100, Min = 1, Max = 100, Rounding = 0, Suffix = '%' })
-SilentGroup:AddSlider('SilentPred', { Text = 'Prediction (x0.01s)', Default = 0, Min = 0, Max = 30, Rounding = 0 })
+Kit.addPred(SilentGroup, 'SilentPredict', 'Prediction (seconds)', 0)
 Options.SilentMethods:SetValue({ ['Mouse.Hit/Target'] = true, Raycast = true, FindPartOnRay = true, ScreenPointToRay = true })
 
 local FilterGroup = Tabs.Combat:AddLeftGroupbox('Target Filters (aimbot / silent / trigger)')
@@ -1613,7 +1683,7 @@ do
             wall = Toggles.AimWallCheck.Value, priority = Options.AimPriority.Value,
         })
         if not part then return end
-        local aimPos = part.Position + part.AssemblyLinearVelocity * (Options.AimPrediction.Value / 100)
+        local aimPos = part.Position + part.AssemblyLinearVelocity * Options.AimPredict.Value
 
         if Options.AimMode.Value == 'Cursor' then
             if not HAS_MOUSEMOVE then
@@ -1640,7 +1710,7 @@ do
         local t = silentTarget
         if not t or not t.Parent then return end
         if math.random(1, 100) > Options.SilentHit.Value then return end
-        return t.Position + t.AssemblyLinearVelocity * (Options.SilentPred.Value / 100)
+        return t.Position + t.AssemblyLinearVelocity * Options.SilentPredict.Value
     end
 
     if HAS_HOOKS then
@@ -3121,7 +3191,7 @@ do
         Tooltip = 'Needs mouse1click. Use if Tool:Activate() alone does not fire.' })
     ShootGroup:AddSlider('MM2ShootRange', { Text = 'Max range (no teleport)', Default = 150, Min = 20, Max = 500, Rounding = 0 })
     ShootGroup:AddSlider('MM2ShootDelay', { Text = 'Delay between shots (ms)', Default = 250, Min = 0, Max = 1500, Rounding = 0 })
-    ShootGroup:AddSlider('MM2ShootPred', { Text = 'Prediction (x0.01s)', Default = 8, Min = 0, Max = 30, Rounding = 0 })
+    Kit.addPred(ShootGroup, 'MM2ShootPredict', 'Prediction (seconds)', 0.08)
 
     actionBinds.MM2AutoShootKey = function() Toggles.MM2AutoShoot:SetValue(not Toggles.MM2AutoShoot.Value) end
 
@@ -3196,7 +3266,7 @@ do
             hrp.AssemblyLinearVelocity = Vector3.zero
         end
 
-        local aimPos = bestPart.Position + bestPart.AssemblyLinearVelocity * (Options.MM2ShootPred.Value / 100)
+        local aimPos = bestPart.Position + bestPart.AssemblyLinearVelocity * Options.MM2ShootPredict.Value
         autoAimPos, autoAimPart = aimPos, bestPart
         if Toggles.MM2ShootLook.Value then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
@@ -3709,6 +3779,29 @@ ThemeGroup:AddButton('Reset colors', function() Options.ThemePreset:SetValue('De
 local connections = {}
 local fpsTimer, frames = 0, 0
 
+do
+    local function aimStep()
+        if Library.Unloaded then return end
+        if not Toggles.AimbotToggle.Value then
+            heldKeys.AimLatch = false
+            return
+        end
+        if Library.Toggled then return end
+        local active
+        if Options.AimKeyMode.Value == 'Toggle' then
+            active = not inputBlocked() and (Options.AimbotKey.Value == 'None' or heldKeys.AimLatch == true)
+        else
+            active = holdActive('AimbotKey')
+        end
+        if active then
+            Camera = workspace.CurrentCamera
+            pcall(runAimbot)
+        end
+    end
+    pcall(function() RunService:UnbindFromRenderStep('FwSerialAim') end)
+    RunService:BindToRenderStep('FwSerialAim', Enum.RenderPriority.Camera.Value + 1, aimStep)
+end
+
 table.insert(connections, RunService.RenderStepped:Connect(function(dt)
     if Library.Unloaded then return end
     Camera = workspace.CurrentCamera
@@ -3728,15 +3821,6 @@ table.insert(connections, RunService.RenderStepped:Connect(function(dt)
         Options.AimFOV.Value, mousePos, col('BoxColor'))
     Kit.setRing(silentRing, silentStroke, Toggles.SilentToggle.Value and Toggles.ShowSilentFOV.Value,
         Options.SilentFOV.Value, mousePos, silentTarget and Color3.fromRGB(80, 255, 80) or col('SkeletonColor'))
-
-    if not Toggles.AimbotToggle.Value then heldKeys.AimLatch = false end
-    local aimActive
-    if Options.AimKeyMode.Value == 'Toggle' then
-        aimActive = not inputBlocked() and (Options.AimbotKey.Value == 'None' or heldKeys.AimLatch == true)
-    else
-        aimActive = holdActive('AimbotKey')
-    end
-    if Toggles.AimbotToggle.Value and aimActive then runAimbot() end
 
     if Toggles.Trigger.Value and holdActive('TriggerKey') then runTrigger() end
 
@@ -3872,6 +3956,7 @@ table.insert(connections, Players.PlayerRemoving:Connect(function(p)
 end))
 
 Library:OnUnload(function()
+    pcall(function() RunService:UnbindFromRenderStep('FwSerialAim') end)
     pcall(stopAllActions)
     for _, c in ipairs(connections) do c:Disconnect() end
     restoreHitboxes()
