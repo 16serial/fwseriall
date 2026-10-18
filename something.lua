@@ -17,10 +17,10 @@ local function KeyGate()
     pcall(function() if isfile and isfile(KEY_FILE) then saved = readfile(KEY_FILE) end end)
     if saved and verify(saved) then return true end
 
-    local BGc, BG2c, BG3c = Color3.fromRGB(16, 16, 20), Color3.fromRGB(24, 24, 30), Color3.fromRGB(40, 40, 52)
-    local ACC, TXTc, DIMc = Color3.fromRGB(88, 101, 242), Color3.fromRGB(235, 235, 240), Color3.fromRGB(150, 150, 165)
+    local BGc, BG2c, BG3c = Color3.fromRGB(14, 14, 14), Color3.fromRGB(21, 21, 21), Color3.fromRGB(34, 34, 34)
+    local ACC, TXTc, DIMc = Color3.fromRGB(105, 105, 118), Color3.fromRGB(235, 235, 235), Color3.fromRGB(150, 150, 160)
     local RED, GREEN = Color3.fromRGB(240, 90, 100), Color3.fromRGB(80, 255, 120)
-    local FONTc = Enum.Font.Code
+    local FONTc = Enum.Font.GothamMedium
 
     local function mk(class, props, par)
         local o = Instance.new(class)
@@ -57,10 +57,10 @@ local function KeyGate()
 
     local frame = mk("CanvasGroup", {
         Size = UDim2.fromOffset(340, 226), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-        BackgroundColor3 = BGc, BorderSizePixel = 0, GroupTransparency = 1,
+        BackgroundColor3 = BGc, BackgroundTransparency = 0.25, BorderSizePixel = 0, GroupTransparency = 1,
     }, sg)
-    rounded(frame, 16)
-    mk("UIStroke", { Color = ACC, Thickness = 1.5 }, frame)
+    rounded(frame, 26)
+    mk("UIStroke", { Color = Color3.new(1, 1, 1), Transparency = 0.55, Thickness = 1 }, frame)
     local scale = mk("UIScale", { Scale = 0.88 }, frame)
     tw(frame, 0.3, { GroupTransparency = 0 })
     tw(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
@@ -188,7 +188,9 @@ local Library, ThemeManager, SaveManager = (function()
     local MB1, TOUCH = Enum.UserInputType.MouseButton1, Enum.UserInputType.Touch
 
     local animStates = setmetatable({}, { __mode = "k" })
+    Library.AnimSpeed = 1
     local themeRoots, themeFns = {}, {}
+    local styleRoots, fontFns = {}, {}
     Library.Theme = { BG = BG, BG2 = BG2, BG3 = BG3, ACCENT = ACCENT, TXT = TXT, DIM = DIM }
 
     local function new(class, props, parent)
@@ -201,7 +203,7 @@ local Library, ThemeManager, SaveManager = (function()
         return new("UICorner", { CornerRadius = UDim.new(0, r or 6) }, parent)
     end
     local function tween(o, t, props, style, dir)
-        local tw = TweenService:Create(o, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+        local tw = TweenService:Create(o, TweenInfo.new(t / (Library.AnimSpeed or 1), style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
         tw:Play()
         return tw
     end
@@ -294,6 +296,8 @@ local Library, ThemeManager, SaveManager = (function()
     local ROLE_KEYS = { "BG", "BG2", "BG3", "ACCENT", "TXT", "DIM" }
     function Library:AddThemeRoot(inst) table.insert(themeRoots, inst) end
     function Library:OnTheme(f) table.insert(themeFns, f) end
+    function Library:OnFont(f) table.insert(fontFns, f) end
+    function Library:GetFont() return FONT end
     function Library:ApplyTheme(t)
         local list = {}
         for _, k in ipairs(ROLE_KEYS) do
@@ -358,14 +362,17 @@ local Library, ThemeManager, SaveManager = (function()
         if menuOpen then
             mainFrame.Visible = true
             tween(mainFrame, 0.2, { GroupTransparency = 0 })
-            tween(mainScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+            local oa = Library.OpenAnim or { 0.9, 0.35, Enum.EasingStyle.Back }
+            tween(mainScale, oa[2], { Scale = Library.UserScale or 1 }, oa[3])
         else
             tween(mainFrame, 0.16, { GroupTransparency = 1 })
-            local tw = tween(mainScale, 0.18, { Scale = 0.9 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            local oa = Library.OpenAnim or { 0.9, 0.35, Enum.EasingStyle.Back }
+            local tw = tween(mainScale, 0.18, { Scale = oa[1] * (Library.UserScale or 1) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
             tw.Completed:Connect(function()
                 if not menuOpen and mainFrame then mainFrame.Visible = false end
             end)
         end
+        if Library._afterToggle then Library._afterToggle() end
     end
 
     local function finishCapture(o, name)
@@ -1020,7 +1027,7 @@ local Library, ThemeManager, SaveManager = (function()
 
         local title = text(mainFrame, {
             Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 0, 30), BackgroundColor3 = BG2,
-            Text = "  " .. (info.Title or "FwSerial") .. "   [END = hide / show]", TextSize = 14, Active = true,
+            Text = "  " .. (info.Title or "FwSerial"), TextSize = 14, Active = true,
         })
         title.BackgroundTransparency = 0
         corner(title, 10)
@@ -1042,24 +1049,42 @@ local Library, ThemeManager, SaveManager = (function()
         animate(close, Color3.fromRGB(170, 50, 65))
         close.MouseButton1Click:Connect(function() Library:Toggle() end)
 
-        local side = new("Frame", {
+        local side = new("ScrollingFrame", {
             Position = UDim2.fromOffset(8, 46), Size = UDim2.new(0, 124, 1, -54), BackgroundColor3 = BG2, BorderSizePixel = 0,
+            ScrollBarThickness = 0, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
         }, mainFrame)
-        corner(side, 12)
-        new("UIListLayout", { Padding = UDim.new(0, 4) }, side)
-        new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, side)
+        local sideCorner = corner(side, 12)
+        sideCorner:SetAttribute("_skip", true)
+        local sideList = new("UIListLayout", { Padding = UDim.new(0, 4) }, side)
+        local sidePad = new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, side)
         local content = new("Frame", {
             Position = UDim2.fromOffset(140, 46), Size = UDim2.new(1, -148, 1, -54), BackgroundTransparency = 1,
         }, mainFrame)
 
         local tabsList = {}
+        local STYLES = {
+            ["Serialin (Old)"] = { layout = "side", font = Enum.Font.Code, radius = 1, tab = "slide", open = { 0.9, 0.35, Enum.EasingStyle.Back } },
+            ["Serialish (Default)"] = { layout = "top", font = Enum.Font.GothamMedium, radius = 1.6, tab = "rise", open = { 0.82, 0.55, Enum.EasingStyle.Back } },
+            ["Serialish Upverted"] = { layout = "bottom", font = Enum.Font.Gotham, radius = 0.7, tab = "drop", open = { 0.96, 0.3, Enum.EasingStyle.Quint } },
+        }
+        local layoutName, styleName, roundness = "side", "Serialin (Old)", 1
         local function selectTab(t)
             for _, x in ipairs(tabsList) do
                 local on = (x == t)
                 if on and not x._page.Visible then
                     x._page.Visible = true
-                    x._page.Position = UDim2.fromOffset(22, 0)
-                    tween(x._page, 0.3, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Quint)
+                    local kind = STYLES[styleName].tab
+                    if kind == "rise" then
+                        x._page.Position = UDim2.fromOffset(0, 24)
+                        tween(x._page, 0.45, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Back)
+                    elseif kind == "drop" then
+                        x._page.Position = UDim2.fromOffset(0, -16)
+                        tween(x._page, 0.3, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Quint)
+                    else
+                        x._page.Position = UDim2.fromOffset(22, 0)
+                        tween(x._page, 0.3, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Quint)
+                    end
                 elseif not on then
                     x._page.Visible = false
                 end
@@ -1068,13 +1093,26 @@ local Library, ThemeManager, SaveManager = (function()
             if popup then popup:Destroy() popup = nil popupOwner = nil end
         end
 
+        local function restyleTab(tab)
+            local horizontal = layoutName ~= "side"
+            tab._btn.AutomaticSize = horizontal and Enum.AutomaticSize.X or Enum.AutomaticSize.None
+            tab._btn.Size = horizontal and UDim2.new(0, 0, 1, -8) or UDim2.new(1, 0, 0, 28)
+            local padx = UDim.new(0, horizontal and 14 or 0)
+            tab._pad.PaddingLeft = padx
+            tab._pad.PaddingRight = padx
+            tab._corner.CornerRadius = horizontal and UDim.new(1, 0) or UDim.new(0, 9)
+        end
+
         function Window:AddTab(name)
             local tab = {}
             local b = new("TextButton", {
                 Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = BG3, BorderSizePixel = 0, Font = FONT, TextSize = 13,
                 TextColor3 = TXT, Text = name,
             }, side)
-            corner(b, 9)
+            local bc = corner(b, 9)
+            bc:SetAttribute("_skip", true)
+            local bpad = new("UIPadding", {}, b)
+            tab._corner, tab._pad = bc, bpad
             local st = animate(b, BG3)
             local page = new("ScrollingFrame", {
                 Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 4,
@@ -1097,6 +1135,7 @@ local Library, ThemeManager, SaveManager = (function()
             function tab:AddRightGroupbox(n) return makeGroupbox(right, n) end
             b.MouseButton1Click:Connect(function() selectTab(tab) end)
             table.insert(tabsList, tab)
+            restyleTab(tab)
             if #tabsList == 1 then selectTab(tab) end
             return tab
         end
@@ -1131,6 +1170,210 @@ local Library, ThemeManager, SaveManager = (function()
             if dragMoved then dragMoved = false return end
             Library:Toggle()
         end)
+
+        local mainStroke = mainFrame:FindFirstChildOfClass("UIStroke")
+        local fontOverride
+        local glassOn, blurWanted = false, false
+        local blur
+
+        local function applyLayout(kind)
+            layoutName = kind
+            local horizontal = kind ~= "side"
+            sideList.FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical
+            sideList.HorizontalAlignment = horizontal and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Left
+            side.AutomaticCanvasSize = horizontal and Enum.AutomaticSize.X or Enum.AutomaticSize.Y
+            side.ScrollingDirection = horizontal and Enum.ScrollingDirection.X or Enum.ScrollingDirection.Y
+            side.CanvasPosition = Vector2.new(0, 0)
+            if kind == "side" then
+                side.Position, side.Size = UDim2.fromOffset(8, 46), UDim2.new(0, 124, 1, -54)
+                content.Position, content.Size = UDim2.fromOffset(140, 46), UDim2.new(1, -148, 1, -54)
+                sidePad.PaddingTop, sidePad.PaddingLeft, sidePad.PaddingRight = UDim.new(0, 6), UDim.new(0, 6), UDim.new(0, 6)
+                sideCorner.CornerRadius = UDim.new(0, 12)
+            elseif kind == "top" then
+                side.Position, side.Size = UDim2.fromOffset(8, 44), UDim2.new(1, -16, 0, 38)
+                content.Position, content.Size = UDim2.fromOffset(8, 90), UDim2.new(1, -16, 1, -98)
+                sidePad.PaddingTop, sidePad.PaddingLeft, sidePad.PaddingRight = UDim.new(0, 4), UDim.new(0, 6), UDim.new(0, 6)
+                sideCorner.CornerRadius = UDim.new(1, 0)
+            else
+                side.Position, side.Size = UDim2.new(0, 8, 1, -46), UDim2.new(1, -16, 0, 38)
+                content.Position, content.Size = UDim2.fromOffset(8, 46), UDim2.new(1, -16, 1, -98)
+                sidePad.PaddingTop, sidePad.PaddingLeft, sidePad.PaddingRight = UDim.new(0, 4), UDim.new(0, 6), UDim.new(0, 6)
+                sideCorner.CornerRadius = UDim.new(0, 10)
+            end
+            for _, t in ipairs(tabsList) do restyleTab(t) end
+        end
+
+        local function rootList(withGui)
+            local list = {}
+            if withGui then table.insert(list, gui) end
+            for _, r in ipairs(styleRoots) do
+                if r.Parent then table.insert(list, r) end
+            end
+            return list
+        end
+
+        local function applyRadius(roots)
+            local f = STYLES[styleName].radius * roundness
+            for _, root in ipairs(roots or rootList(true)) do
+                for _, d in ipairs(root:GetDescendants()) do
+                    if d:IsA("UICorner") and not d:GetAttribute("_skip") and d.CornerRadius.Scale == 0 then
+                        local r0 = d:GetAttribute("_r0")
+                        if not r0 then
+                            r0 = d.CornerRadius.Offset
+                            d:SetAttribute("_r0", r0)
+                        end
+                        d.CornerRadius = UDim.new(0, math.floor(r0 * f + 0.5))
+                    end
+                end
+            end
+        end
+
+        local function setFonts(roots, f)
+            for _, root in ipairs(roots) do
+                for _, d in ipairs(root:GetDescendants()) do
+                    if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then d.Font = f end
+                end
+            end
+        end
+
+        local function applyFont(f)
+            FONT = f
+            setFonts(rootList(true), f)
+            fire(fontFns, f)
+        end
+
+        local function applyAlpha(roots)
+            local extra = (glassOn and 0.32 or 0) + (Library.WindowAlpha or 0)
+            local T = Library.Theme
+            if not roots then
+                roots = rootList(false)
+                table.insert(roots, 1, mainFrame)
+            end
+            for _, root in ipairs(roots) do
+                local list = root:GetDescendants()
+                table.insert(list, root)
+                for _, d in ipairs(list) do
+                    if d:IsA("GuiObject") and d.Name ~= "NoTheme" then
+                        local o = d:GetAttribute("_bgt")
+                        if extra > 0 then
+                            if o == nil then
+                                local c = d.BackgroundColor3
+                                if d.BackgroundTransparency < 1 and (c == T.BG or c == T.BG2 or c == T.BG3) then
+                                    o = d.BackgroundTransparency
+                                    d:SetAttribute("_bgt", o)
+                                end
+                            end
+                            if o ~= nil then d.BackgroundTransparency = math.clamp(o + extra, 0, 0.92) end
+                        elseif o ~= nil then
+                            d.BackgroundTransparency = o
+                        end
+                    end
+                end
+            end
+        end
+
+        local function applyStroke()
+            local list = { mainStroke }
+            for _, root in ipairs(rootList(false)) do
+                for _, d in ipairs(root:GetDescendants()) do
+                    if d:IsA("UIStroke") and d.Parent:IsA("CanvasGroup") then table.insert(list, d) end
+                end
+            end
+            for _, st in ipairs(list) do
+                if glassOn then
+                    st.Color, st.Transparency, st.Thickness = Color3.new(1, 1, 1), 0.55, 1
+                else
+                    st.Color, st.Transparency, st.Thickness = Library.Theme.ACCENT, 0, 1.5
+                end
+            end
+        end
+
+        local function updateBlur()
+            local want = glassOn and blurWanted and menuOpen
+            if want and not blur then
+                blur = Instance.new("BlurEffect")
+                blur.Name = "FwSerialBlur"
+                blur.Size = 0
+                blur.Parent = game:GetService("Lighting")
+            end
+            if blur then
+                tween(blur, 0.3, { Size = want and 18 or 0 })
+                if not want then
+                    task.delay(0.4, function()
+                        if blur and not (glassOn and blurWanted and menuOpen) then
+                            pcall(function() blur:Destroy() end)
+                            blur = nil
+                        end
+                    end)
+                end
+            end
+        end
+        Library._afterToggle = updateBlur
+        table.insert(unloadFns, function()
+            if blur then pcall(function() blur:Destroy() end) end
+        end)
+
+        Library._refreshRoot = function(root)
+            applyRadius({ root })
+            setFonts({ root }, FONT)
+            applyAlpha({ root })
+            applyStroke()
+        end
+        function Library:AddStyleRoot(inst)
+            table.insert(styleRoots, inst)
+            local pending = false
+            inst.DescendantAdded:Connect(function()
+                if pending then return end
+                pending = true
+                task.delay(0.15, function()
+                    pending = false
+                    if not Library.Unloaded and inst.Parent then Library._refreshRoot(inst) end
+                end)
+            end)
+            Library._refreshRoot(inst)
+        end
+
+        function Library:SetStyle(name)
+            local st = STYLES[name]
+            if not st then return end
+            styleName = name
+            Library.OpenAnim = st.open
+            applyLayout(st.layout)
+            applyFont(fontOverride or st.font)
+            applyRadius()
+        end
+        function Library:SetFontOverride(f)
+            fontOverride = f
+            applyFont(f or STYLES[styleName].font)
+        end
+        function Library:SetRoundness(v)
+            roundness = v
+            applyRadius()
+        end
+        function Library:SetGlass(on)
+            glassOn = on and true or false
+            applyStroke()
+            applyAlpha()
+            updateBlur()
+        end
+        function Library:SetBlur(on)
+            blurWanted = on and true or false
+            updateBlur()
+        end
+        function Library:SetOpacity(a)
+            Library.WindowAlpha = a
+            applyAlpha()
+        end
+        function Library:SetScale(v)
+            Library.UserScale = v
+            if menuOpen and mainScale then tween(mainScale, 0.15, { Scale = v }) end
+        end
+        function Library:SetAnimSpeed(v) Library.AnimSpeed = v end
+        function Library:SetOpenButton(v) openBtn.Visible = v and true or false end
+        function Library:ResetPosition()
+            mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            openBtn.Position = UDim2.new(0, 8, 0.5, -18)
+        end
 
         return Window
     end
@@ -1255,6 +1498,7 @@ local Tabs = {
     Troll = Window:AddTab('Troll'),
     Visuals = Window:AddTab('Visuals'),
     World = Window:AddTab('World'),
+    Extras = Window:AddTab('Extras'),
     MM2HVH = IS_MM2 and Window:AddTab('MM2HVH') or nil,
     Tribes = IS_TRIBES and Window:AddTab('Tribes 3v3') or nil,
     Whitelist = Window:AddTab('Whitelist'),
@@ -3368,7 +3612,8 @@ do
     Library:OnTheme(function(t)
         BG, BG2, BG3, ACCENT, TXT, DIM = t.BG, t.BG2, t.BG3, t.ACCENT, t.TXT, t.DIM
     end)
-    local FONT = Enum.Font.Code
+    local FONT = Library:GetFont()
+    Library:OnFont(function(f) FONT = f end)
     local LEFT = Enum.TextXAlignment.Left
 
     local function mk(class, props, parent)
@@ -3389,6 +3634,7 @@ do
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(TargetGui) end end)
     TargetGui.Parent = GuiParent
     Library:AddThemeRoot(TargetGui)
+    Library:AddStyleRoot(TargetGui)
 
     local FULL_H, MIN_H = 430, 40
     local TFrame = mk("CanvasGroup", {
@@ -3751,17 +3997,17 @@ Library.ToggleKeybind = Options.MenuKeybind
 
 local ThemeGroup = Tabs['UI Settings']:AddRightGroupbox('GUI Colors')
 local THEME_PRESETS = {
-    ['Default']  = { Color3.fromRGB(88, 101, 242),  Color3.fromRGB(16, 16, 20), Color3.fromRGB(235, 235, 240) },
+    ['Blurple']  = { Color3.fromRGB(88, 101, 242),  Color3.fromRGB(16, 16, 20), Color3.fromRGB(235, 235, 240) },
     ['Crimson']  = { Color3.fromRGB(220, 50, 70),   Color3.fromRGB(18, 12, 14), Color3.fromRGB(240, 232, 234) },
     ['Emerald']  = { Color3.fromRGB(40, 200, 120),  Color3.fromRGB(12, 18, 15), Color3.fromRGB(232, 242, 236) },
     ['Ocean']    = { Color3.fromRGB(40, 150, 230),  Color3.fromRGB(10, 16, 24), Color3.fromRGB(230, 238, 245) },
     ['Sunset']   = { Color3.fromRGB(255, 120, 60),  Color3.fromRGB(20, 14, 12), Color3.fromRGB(245, 236, 230) },
     ['Purple']   = { Color3.fromRGB(170, 80, 230),  Color3.fromRGB(16, 12, 22), Color3.fromRGB(240, 232, 246) },
     ['Pink']     = { Color3.fromRGB(240, 90, 170),  Color3.fromRGB(20, 12, 17), Color3.fromRGB(245, 234, 240) },
-    ['Mono']     = { Color3.fromRGB(210, 210, 215), Color3.fromRGB(14, 14, 14), Color3.fromRGB(235, 235, 235) },
+    ['Mono']     = { Color3.fromRGB(105, 105, 118), Color3.fromRGB(14, 14, 14), Color3.fromRGB(235, 235, 235) },
     ['Light']    = { Color3.fromRGB(70, 90, 230),   Color3.fromRGB(240, 240, 245), Color3.fromRGB(30, 30, 40) },
 }
-local themeNames = { 'Default', 'Crimson', 'Emerald', 'Ocean', 'Sunset', 'Purple', 'Pink', 'Mono', 'Light' }
+local themeNames = { 'Mono', 'Blurple', 'Crimson', 'Emerald', 'Ocean', 'Sunset', 'Purple', 'Pink', 'Light' }
 
 local function deriveTheme(accent, bg, txt)
     local lum = 0.299 * bg.R + 0.587 * bg.G + 0.114 * bg.B
@@ -3779,10 +4025,11 @@ local function applyThemeFromPickers()
 end
 
 ThemeGroup:AddDropdown('ThemePreset', { Values = themeNames, Default = 1, Multi = false, Text = 'Preset' })
-ThemeGroup:AddLabel('Accent color'):AddColorPicker('ThemeAccent', { Default = THEME_PRESETS.Default[1], Title = 'Accent' })
-ThemeGroup:AddLabel('Background color'):AddColorPicker('ThemeBG', { Default = THEME_PRESETS.Default[2], Title = 'Background' })
-ThemeGroup:AddLabel('Text color'):AddColorPicker('ThemeText', { Default = THEME_PRESETS.Default[3], Title = 'Text' })
+ThemeGroup:AddLabel('Accent color'):AddColorPicker('ThemeAccent', { Default = THEME_PRESETS.Mono[1], Title = 'Accent' })
+ThemeGroup:AddLabel('Background color'):AddColorPicker('ThemeBG', { Default = THEME_PRESETS.Mono[2], Title = 'Background' })
+ThemeGroup:AddLabel('Text color'):AddColorPicker('ThemeText', { Default = THEME_PRESETS.Mono[3], Title = 'Text' })
 for _, k in ipairs({ 'ThemeAccent', 'ThemeBG', 'ThemeText' }) do Options[k]:OnChanged(applyThemeFromPickers) end
+applyThemeFromPickers()
 Options.ThemePreset:OnChanged(function()
     local p = THEME_PRESETS[Options.ThemePreset.Value]
     if not p then return end
@@ -3793,7 +4040,38 @@ Options.ThemePreset:OnChanged(function()
     themeApplying = false
     applyThemeFromPickers()
 end)
-ThemeGroup:AddButton('Reset colors', function() Options.ThemePreset:SetValue('Default') end)
+ThemeGroup:AddButton('Reset colors', function() Options.ThemePreset:SetValue('Mono') end)
+
+local GuiGroup = Tabs['UI Settings']:AddLeftGroupbox('GUI Style')
+GuiGroup:AddDropdown('GuiStyle', { Values = { 'Serialish (Default)', 'Serialin (Old)', 'Serialish Upverted' }, Default = 1, Multi = false, Text = 'Whole GUI style',
+    Tooltip = 'Default = glass pill tabs on top. Old = sidebar tabs. Upverted = tab bar at the bottom.' })
+GuiGroup:AddToggle('GlassMode', { Text = 'Glass mode (iOS look)', Default = true })
+GuiGroup:AddToggle('GlassBlur', { Text = 'Blur the game behind the menu', Default = false, Tooltip = 'Only while the menu is open and Glass mode is on.' })
+GuiGroup:AddSlider('GuiScale', { Text = 'Menu scale (%)', Default = 100, Min = 70, Max = 130, Rounding = 0 })
+GuiGroup:AddSlider('GuiOpacity', { Text = 'Menu transparency (%)', Default = 0, Min = 0, Max = 60, Rounding = 0 })
+GuiGroup:AddSlider('GuiRoundness', { Text = 'Corner roundness (%)', Default = 100, Min = 0, Max = 200, Rounding = 0 })
+GuiGroup:AddSlider('GuiAnimSpeed', { Text = 'Animation speed (x)', Default = 1, Min = 0.5, Max = 2.5, Rounding = 1 })
+GuiGroup:AddDropdown('GuiFont', { Values = { 'Auto', 'Code', 'Gotham', 'GothamMedium', 'SourceSans', 'Ubuntu', 'Arial' }, Default = 1, Multi = false, Text = 'Font' })
+GuiGroup:AddToggle('GuiOpenButton', { Text = 'Show floating open button', Default = true })
+GuiGroup:AddButton('Reset menu position', function() Library:ResetPosition() end)
+
+Options.GuiStyle:OnChanged(function()
+    Library:SetStyle(Options.GuiStyle.Value)
+    if Options.GuiStyle.Value == 'Serialish (Default)' and not Toggles.GlassMode.Value then Toggles.GlassMode:SetValue(true) end
+end)
+Toggles.GlassMode:OnChanged(function() Library:SetGlass(Toggles.GlassMode.Value) end)
+Toggles.GlassBlur:OnChanged(function() Library:SetBlur(Toggles.GlassBlur.Value) end)
+Options.GuiScale:OnChanged(function() Library:SetScale(Options.GuiScale.Value / 100) end)
+Options.GuiOpacity:OnChanged(function() Library:SetOpacity(Options.GuiOpacity.Value / 100) end)
+Options.GuiRoundness:OnChanged(function() Library:SetRoundness(Options.GuiRoundness.Value / 100) end)
+Options.GuiAnimSpeed:OnChanged(function() Library:SetAnimSpeed(Options.GuiAnimSpeed.Value) end)
+Options.GuiFont:OnChanged(function()
+    local v = Options.GuiFont.Value
+    Library:SetFontOverride(v ~= 'Auto' and Enum.Font[v] or nil)
+end)
+Toggles.GuiOpenButton:OnChanged(function() Library:SetOpenButton(Toggles.GuiOpenButton.Value) end)
+Library:SetStyle('Serialish (Default)')
+Library:SetGlass(true)
 
 local connections = {}
 local fpsTimer, frames = 0, 0
@@ -4088,6 +4366,722 @@ do
     Library:OnUnload(function() pcall(saveLast) end)
 end
 
+do
+    local HttpS = game:GetService('HttpService')
+    local GuiS = game:GetService('GuiService')
+    local MoveGroup = Tabs.Extras:AddLeftGroupbox('Movement & camera')
+    local PerfGroup = Tabs.Extras:AddLeftGroupbox('Performance')
+    local ServerGroup = Tabs.Extras:AddRightGroupbox('Server')
+    local PlayerGroup = Tabs.Extras:AddRightGroupbox('Players')
+
+    local function myHum()
+        local c = LocalPlayer.Character
+        return c and c:FindFirstChildOfClass('Humanoid')
+    end
+
+    MoveGroup:AddToggle('GravityToggle', { Text = 'Custom gravity', Default = false })
+    MoveGroup:AddSlider('GravityValue', { Text = 'Gravity', Default = 196, Min = 0, Max = 400, Rounding = 0 })
+    MoveGroup:AddToggle('JumpToggle', { Text = 'Custom jump power', Default = false })
+    MoveGroup:AddSlider('JumpValue', { Text = 'Jump power', Default = 50, Min = 20, Max = 200, Rounding = 0 })
+    MoveGroup:AddToggle('AntiVoid', { Text = 'Anti-void (teleport back to last safe spot)', Default = false })
+    MoveGroup:AddToggle('InfZoom', { Text = 'Infinite camera zoom', Default = false })
+    MoveGroup:AddToggle('ForceFirst', { Text = 'Force first person', Default = false })
+
+    local origGravity = workspace.Gravity
+    local lastSafe
+    local origZoom = { LocalPlayer.CameraMaxZoomDistance, LocalPlayer.CameraMinZoomDistance }
+
+    Toggles.GravityToggle:OnChanged(function()
+        if not Toggles.GravityToggle.Value then workspace.Gravity = origGravity end
+    end)
+    Toggles.JumpToggle:OnChanged(function()
+        if not Toggles.JumpToggle.Value then
+            local h = myHum()
+            if h then h.UseJumpPower = true h.JumpPower = 50 end
+        end
+    end)
+    Toggles.InfZoom:OnChanged(function()
+        if Toggles.InfZoom.Value then
+            LocalPlayer.CameraMaxZoomDistance = 100000
+            LocalPlayer.CameraMinZoomDistance = 0
+        else
+            LocalPlayer.CameraMaxZoomDistance = origZoom[1]
+            LocalPlayer.CameraMinZoomDistance = origZoom[2]
+        end
+    end)
+    Toggles.ForceFirst:OnChanged(function()
+        LocalPlayer.CameraMode = Toggles.ForceFirst.Value and Enum.CameraMode.LockFirstPerson or Enum.CameraMode.Classic
+    end)
+
+    local spectateTarget
+    PlayerGroup:AddDropdown('TPPlayer', { Values = {}, Default = 0, Multi = false, Text = 'Player' })
+    PlayerGroup:AddButton('Teleport to player', function()
+        local t = Players:FindFirstChild(tostring(Options.TPPlayer.Value))
+        local me, them = getHRP(LocalPlayer), t and getHRP(t)
+        if me and them then me.CFrame = them.CFrame * CFrame.new(0, 0, 3) end
+    end)
+    PlayerGroup:AddToggle('SpectatePlayer', { Text = 'Spectate selected player', Default = false })
+    PlayerGroup:AddToggle('JoinLeaveNotify', { Text = 'Notify when players join / leave', Default = false })
+
+    local function refreshPlayers()
+        local names = {}
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl ~= LocalPlayer then table.insert(names, pl.Name) end
+        end
+        table.sort(names)
+        Options.TPPlayer:SetValues(names)
+    end
+    refreshPlayers()
+    table.insert(connections, Players.PlayerAdded:Connect(function(pl)
+        refreshPlayers()
+        if Toggles.JoinLeaveNotify.Value then Library:Notify(pl.Name .. ' joined', 3) end
+    end))
+    table.insert(connections, Players.PlayerRemoving:Connect(function(pl)
+        task.defer(refreshPlayers)
+        if Toggles.JoinLeaveNotify.Value then Library:Notify(pl.Name .. ' left', 3) end
+    end))
+
+    Toggles.SpectatePlayer:OnChanged(function()
+        if not Toggles.SpectatePlayer.Value then
+            local h = myHum()
+            if h then workspace.CurrentCamera.CameraSubject = h end
+        end
+    end)
+
+    table.insert(connections, RunService.Heartbeat:Connect(function()
+        if Library.Unloaded then return end
+        if Toggles.GravityToggle.Value then workspace.Gravity = Options.GravityValue.Value end
+        local h = myHum()
+        if h and Toggles.JumpToggle.Value then
+            h.UseJumpPower = true
+            h.JumpPower = Options.JumpValue.Value
+        end
+        local hrp = getHRP(LocalPlayer)
+        if hrp and h then
+            if h.FloorMaterial ~= Enum.Material.Air then lastSafe = hrp.CFrame end
+            if Toggles.AntiVoid.Value and lastSafe and hrp.Position.Y < workspace.FallenPartsDestroyHeight + 80 then
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.CFrame = lastSafe + Vector3.new(0, 4, 0)
+            end
+        end
+        if Toggles.SpectatePlayer.Value then
+            local t = Players:FindFirstChild(tostring(Options.TPPlayer.Value))
+            local th = t and getHum(t)
+            if th then workspace.CurrentCamera.CameraSubject = th end
+        end
+    end))
+
+    ServerGroup:AddButton('Server hop', function()
+        task.spawn(function()
+            local ok, data = pcall(function()
+                return HttpS:JSONDecode(game:HttpGet(('https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100'):format(game.PlaceId)))
+            end)
+            local picked
+            if ok and type(data) == 'table' and data.data then
+                for _, sv in ipairs(data.data) do
+                    if sv.id ~= game.JobId and sv.playing and sv.maxPlayers and sv.playing < sv.maxPlayers then
+                        picked = sv.id
+                        break
+                    end
+                end
+            end
+            if picked then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, picked, LocalPlayer)
+            else
+                Library:Notify('No other server found (or HttpGet is blocked). Rejoining instead.', 4)
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end)
+    end)
+    ServerGroup:AddButton('Copy job id', function()
+        if setclipboard then
+            setclipboard(game.JobId)
+            Library:Notify('Job id copied.', 3)
+        else
+            Library:Notify('Your executor has no setclipboard.', 3)
+        end
+    end)
+    ServerGroup:AddInput('JoinJobInput', { Text = 'Join by job id', Placeholder = 'paste a job id' })
+    ServerGroup:AddButton('Join job id', function()
+        local id = tostring(Options.JoinJobInput.Value or ''):match('^%s*(.-)%s*$')
+        if id == '' then Library:Notify('Paste a job id first.', 3) return end
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, id, LocalPlayer)
+    end)
+    ServerGroup:AddToggle('AutoRejoin', { Text = 'Auto rejoin when kicked / disconnected', Default = false })
+    table.insert(connections, GuiS.ErrorMessageChanged:Connect(function()
+        if not Toggles.AutoRejoin.Value or Library.Unloaded then return end
+        task.wait(2)
+        pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
+        task.delay(8, function() pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end) end)
+    end))
+
+    PerfGroup:AddToggle('FPSBoost', { Text = 'FPS booster (shadows, particles, quality)', Default = false })
+    PerfGroup:AddToggle('NoEffects', { Text = 'Remove blur / bloom / color effects', Default = false })
+    PerfGroup:AddToggle('FPSCapToggle', { Text = 'Custom FPS cap', Default = false })
+    PerfGroup:AddSlider('FPSCapValue', { Text = 'FPS cap', Default = 144, Min = 30, Max = 360, Rounding = 0 })
+    PerfGroup:AddToggle('FPSUnlimit', { Text = 'FPS unlimiter (removes the FPS limit)', Default = false })
+
+    local boosted, origShadows, origQuality = {}, nil, nil
+    Toggles.FPSBoost:OnChanged(function()
+        if Toggles.FPSBoost.Value then
+            origShadows = Lighting.GlobalShadows
+            pcall(function() origQuality = settings().Rendering.QualityLevel end)
+            Lighting.GlobalShadows = false
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+            task.spawn(function()
+                local n = 0
+                for _, d in ipairs(workspace:GetDescendants()) do
+                    if (d:IsA('ParticleEmitter') or d:IsA('Trail') or d:IsA('Smoke') or d:IsA('Fire') or d:IsA('Sparkles')) and d.Enabled then
+                        d.Enabled = false
+                        table.insert(boosted, d)
+                    end
+                    n = n + 1
+                    if n % 400 == 0 then task.wait() end
+                end
+            end)
+        else
+            if origShadows ~= nil then Lighting.GlobalShadows = origShadows end
+            if origQuality then pcall(function() settings().Rendering.QualityLevel = origQuality end) end
+            for _, d in ipairs(boosted) do
+                if d.Parent then pcall(function() d.Enabled = true end) end
+            end
+            table.clear(boosted)
+        end
+    end)
+
+    local effectClasses = { 'BlurEffect', 'BloomEffect', 'ColorCorrectionEffect', 'SunRaysEffect', 'DepthOfFieldEffect' }
+    local disabledFx = {}
+    local function isFx(d)
+        if d.Name == 'FwSerialBlur' or d.Name == 'FwSerialCC' then return false end
+        for _, c in ipairs(effectClasses) do
+            if d:IsA(c) then return true end
+        end
+        return false
+    end
+    local function killFx(d)
+        if isFx(d) and d.Enabled then
+            d.Enabled = false
+            table.insert(disabledFx, d)
+        end
+    end
+    local function sweepFx()
+        for _, d in ipairs(Lighting:GetDescendants()) do killFx(d) end
+        for _, d in ipairs(workspace.CurrentCamera:GetDescendants()) do killFx(d) end
+    end
+    Toggles.NoEffects:OnChanged(function()
+        if Toggles.NoEffects.Value then
+            sweepFx()
+        else
+            for _, d in ipairs(disabledFx) do
+                if d.Parent then pcall(function() d.Enabled = true end) end
+            end
+            table.clear(disabledFx)
+        end
+    end)
+    table.insert(connections, Lighting.DescendantAdded:Connect(function(d)
+        if Toggles.NoEffects.Value then task.defer(killFx, d) end
+    end))
+
+    local function applyFps()
+        if not setfpscap then
+            if Toggles.FPSCapToggle.Value or Toggles.FPSUnlimit.Value then Library:Notify('Your executor has no setfpscap.', 3) end
+            return
+        end
+        if Toggles.FPSUnlimit.Value or not Toggles.FPSCapToggle.Value then
+            if not pcall(setfpscap, 0) then pcall(setfpscap, 999) end
+        else
+            pcall(setfpscap, Options.FPSCapValue.Value)
+        end
+    end
+    Toggles.FPSCapToggle:OnChanged(applyFps)
+    Toggles.FPSUnlimit:OnChanged(applyFps)
+    Options.FPSCapValue:OnChanged(function()
+        if setfpscap and Toggles.FPSCapToggle.Value and not Toggles.FPSUnlimit.Value then pcall(setfpscap, Options.FPSCapValue.Value) end
+    end)
+
+    Library:OnUnload(function()
+        workspace.Gravity = origGravity
+        LocalPlayer.CameraMaxZoomDistance = origZoom[1]
+        LocalPlayer.CameraMinZoomDistance = origZoom[2]
+        LocalPlayer.CameraMode = Enum.CameraMode.Classic
+        if Toggles.FPSBoost.Value and origShadows ~= nil then Lighting.GlobalShadows = origShadows end
+        for _, d in ipairs(boosted) do if d.Parent then pcall(function() d.Enabled = true end) end end
+        for _, d in ipairs(disabledFx) do if d.Parent then pcall(function() d.Enabled = true end) end end
+        if setfpscap and (Toggles.FPSCapToggle.Value or Toggles.FPSUnlimit.Value) then pcall(setfpscap, 0) end
+    end)
+end
+
+do
+    local CAS = game:GetService('ContextActionService')
+    local SoundS = game:GetService('SoundService')
+    local StarterGuiS = game:GetService('StarterGui')
+    local TextChatS = game:GetService('TextChatService')
+    local CamGroup = Tabs.Extras:AddLeftGroupbox('Camera & player')
+    local ToolGroup = Tabs.Extras:AddRightGroupbox('World, audio & tools')
+
+    local function myHum()
+        local c = LocalPlayer.Character
+        return c and c:FindFirstChildOfClass('Humanoid')
+    end
+
+    CamGroup:AddToggle('Freecam', { Text = 'Freecam (WASD + Q / E, hold right mouse to look)', Default = false })
+    CamGroup:AddSlider('FreecamSpeed', { Text = 'Freecam speed', Default = 50, Min = 10, Max = 300, Rounding = 0 })
+    CamGroup:AddToggle('CamNoCollide', { Text = 'Camera through walls', Default = false })
+    CamGroup:AddToggle('HideName', { Text = 'Hide my overhead name', Default = false })
+    CamGroup:AddToggle('ForceChat', { Text = 'Force chat visible', Default = false })
+
+    local fc = { cf = CFrame.new(), yaw = 0, pitch = 0 }
+    local function sink() return Enum.ContextActionResult.Sink end
+    Toggles.Freecam:OnChanged(function()
+        local cam = workspace.CurrentCamera
+        if Toggles.Freecam.Value then
+            fc.cf = cam.CFrame
+            local look = cam.CFrame.LookVector
+            fc.yaw = math.atan2(-look.X, -look.Z)
+            fc.pitch = math.asin(look.Y)
+            CAS:BindActionAtPriority('FwFreecamSink', sink, false, 3000,
+                Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.Q, Enum.KeyCode.E)
+        else
+            pcall(function() CAS:UnbindAction('FwFreecamSink') end)
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            cam.CameraType = Enum.CameraType.Custom
+            local h = myHum()
+            if h then cam.CameraSubject = h end
+        end
+    end)
+    pcall(function() RunService:UnbindFromRenderStep('FwSerialFreecam') end)
+    RunService:BindToRenderStep('FwSerialFreecam', Enum.RenderPriority.Camera.Value + 2, function(dt)
+        if Library.Unloaded or not Toggles.Freecam.Value then return end
+        local cam = workspace.CurrentCamera
+        cam.CameraType = Enum.CameraType.Scriptable
+        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+            local d = UserInputService:GetMouseDelta()
+            fc.yaw = fc.yaw - d.X * 0.003
+            fc.pitch = math.clamp(fc.pitch - d.Y * 0.003, -1.5, 1.5)
+        else
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        end
+        local rot = CFrame.fromOrientation(fc.pitch, fc.yaw, 0)
+        local move = Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Vector3.new(0, 0, -1) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move + Vector3.new(0, 0, 1) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move + Vector3.new(-1, 0, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Vector3.new(1, 0, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.E) then move = move + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Q) then move = move + Vector3.new(0, -1, 0) end
+        local speed = Options.FreecamSpeed.Value * (UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and 3 or 1)
+        fc.cf = CFrame.new(fc.cf.Position + rot:VectorToWorldSpace(move) * speed * dt) * rot
+        cam.CFrame = fc.cf
+    end)
+
+    Toggles.CamNoCollide:OnChanged(function()
+        LocalPlayer.DevCameraOcclusionMode = Toggles.CamNoCollide.Value and Enum.DevCameraOcclusionMode.Invisicam or Enum.DevCameraOcclusionMode.Zoom
+    end)
+    Toggles.HideName:OnChanged(function()
+        if not Toggles.HideName.Value then
+            local h = myHum()
+            if h then h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer end
+        end
+    end)
+    task.spawn(function()
+        while not Library.Unloaded do
+            task.wait(1)
+            if Toggles.ForceChat.Value then
+                pcall(function() StarterGuiS:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true) end)
+                pcall(function()
+                    local w = TextChatS:FindFirstChildOfClass('ChatWindowConfiguration')
+                    if w then w.Enabled = true end
+                    local i = TextChatS:FindFirstChildOfClass('ChatInputBarConfiguration')
+                    if i then i.Enabled = true end
+                end)
+            end
+        end
+    end)
+
+    ToolGroup:AddToggle('GradeToggle', { Text = 'Color grading', Default = false })
+    ToolGroup:AddSlider('GradeBright', { Text = 'Brightness', Default = 0, Min = -0.5, Max = 0.5, Rounding = 2 })
+    ToolGroup:AddSlider('GradeContrast', { Text = 'Contrast', Default = 0, Min = -0.5, Max = 1, Rounding = 2 })
+    ToolGroup:AddSlider('GradeSat', { Text = 'Saturation', Default = 0, Min = -1, Max = 1, Rounding = 2 })
+    local cc
+    local function updateGrade()
+        if Toggles.GradeToggle.Value then
+            if not cc then
+                cc = Instance.new('ColorCorrectionEffect')
+                cc.Name = 'FwSerialCC'
+                cc.Parent = Lighting
+            end
+            cc.Brightness = Options.GradeBright.Value
+            cc.Contrast = Options.GradeContrast.Value
+            cc.Saturation = Options.GradeSat.Value
+        elseif cc then
+            cc:Destroy()
+            cc = nil
+        end
+    end
+    Toggles.GradeToggle:OnChanged(updateGrade)
+    Options.GradeBright:OnChanged(updateGrade)
+    Options.GradeContrast:OnChanged(updateGrade)
+    Options.GradeSat:OnChanged(updateGrade)
+
+    ToolGroup:AddToggle('AmbientToggle', { Text = 'Custom ambient light', Default = false })
+    ToolGroup:AddLabel('Ambient color'):AddColorPicker('AmbientColor', { Default = Color3.fromRGB(120, 120, 160), Title = 'Ambient' })
+    local ambOrig
+    local function updateAmbient()
+        if Toggles.AmbientToggle.Value then
+            if not ambOrig then ambOrig = { Lighting.Ambient, Lighting.OutdoorAmbient } end
+            Lighting.Ambient = Options.AmbientColor.Value
+            Lighting.OutdoorAmbient = Options.AmbientColor.Value
+        elseif ambOrig then
+            Lighting.Ambient, Lighting.OutdoorAmbient = ambOrig[1], ambOrig[2]
+            ambOrig = nil
+        end
+    end
+    Toggles.AmbientToggle:OnChanged(updateAmbient)
+    Options.AmbientColor:OnChanged(updateAmbient)
+
+    ToolGroup:AddToggle('NoTextures', { Text = 'Remove textures & decals', Default = false })
+    local texOrig = {}
+    Toggles.NoTextures:OnChanged(function()
+        if Toggles.NoTextures.Value then
+            task.spawn(function()
+                local n = 0
+                for _, d in ipairs(workspace:GetDescendants()) do
+                    if (d:IsA('Decal') or d:IsA('Texture')) and d.Transparency < 1 then
+                        texOrig[d] = d.Transparency
+                        d.Transparency = 1
+                    end
+                    n = n + 1
+                    if n % 400 == 0 then task.wait() end
+                    if not Toggles.NoTextures.Value then break end
+                end
+            end)
+        else
+            for d, t in pairs(texOrig) do
+                if d.Parent then pcall(function() d.Transparency = t end) end
+            end
+            table.clear(texOrig)
+        end
+    end)
+
+    ToolGroup:AddToggle('MuteSounds', { Text = 'Mute game sounds', Default = false })
+    local soundOrig = setmetatable({}, { __mode = 'k' })
+    local function mute(d)
+        if d:IsA('Sound') and soundOrig[d] == nil then
+            soundOrig[d] = d.Volume
+            d.Volume = 0
+        end
+    end
+    Toggles.MuteSounds:OnChanged(function()
+        if Toggles.MuteSounds.Value then
+            for _, d in ipairs(workspace:GetDescendants()) do mute(d) end
+            for _, d in ipairs(SoundS:GetDescendants()) do mute(d) end
+        else
+            for d, v in pairs(soundOrig) do pcall(function() d.Volume = v end) end
+            table.clear(soundOrig)
+        end
+    end)
+    table.insert(connections, workspace.DescendantAdded:Connect(function(d)
+        if Toggles.MuteSounds.Value then task.defer(mute, d) end
+    end))
+
+    ToolGroup:AddToggle('AutoClicker', { Text = 'Auto clicker (hold left click)', Default = false })
+    ToolGroup:AddSlider('ClickCPS', { Text = 'Clicks per second', Default = 10, Min = 1, Max = 30, Rounding = 0 })
+    ToolGroup:AddButton('Reset character', function()
+        local h = myHum()
+        if h then h.Health = 0 end
+    end)
+
+    local clickAcc = 0
+    table.insert(connections, RunService.Heartbeat:Connect(function(dt)
+        if Library.Unloaded then return end
+        if Toggles.AutoClicker.Value and HAS_CLICK and not Library.Toggled
+            and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+            clickAcc = clickAcc + dt
+            if clickAcc >= 1 / Options.ClickCPS.Value then
+                clickAcc = 0
+                pcall(mouse1click)
+            end
+        else
+            clickAcc = 0
+        end
+        if Toggles.HideName.Value then
+            local h = myHum()
+            if h then h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+        end
+        if Toggles.AmbientToggle.Value then
+            Lighting.Ambient = Options.AmbientColor.Value
+            Lighting.OutdoorAmbient = Options.AmbientColor.Value
+        end
+    end))
+
+    Library:OnUnload(function()
+        pcall(function() RunService:UnbindFromRenderStep('FwSerialFreecam') end)
+        pcall(function() CAS:UnbindAction('FwFreecamSink') end)
+        if Toggles.Freecam.Value then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+        end
+        LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+        if cc then cc:Destroy() end
+        if ambOrig then Lighting.Ambient, Lighting.OutdoorAmbient = ambOrig[1], ambOrig[2] end
+        for d, t in pairs(texOrig) do if d.Parent then pcall(function() d.Transparency = t end) end end
+        for d, v in pairs(soundOrig) do pcall(function() d.Volume = v end) end
+        local h = myHum()
+        if h then h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer end
+    end)
+end
+
+do
+    local CursorGroup = Tabs.Visuals:AddRightGroupbox('Custom cursor')
+    CursorGroup:AddToggle('CustomCursor', { Text = 'Custom cursor (hides the original)', Default = false })
+    CursorGroup:AddDropdown('CursorStyle', {
+        Values = { 'Dark', 'White', 'Angelic', 'Bubbly', 'Neon', 'Star', 'Rainbow', 'Ring', 'Crimson', 'Mint' },
+        Default = 1, Multi = false, Text = 'Cursor style',
+    })
+    CursorGroup:AddSlider('CursorSize', { Text = 'Cursor size (%)', Default = 100, Min = 50, Max = 250, Rounding = 0 })
+
+    local cursorGui = Instance.new('ScreenGui')
+    cursorGui.Name = 'FwSerialCursor'
+    cursorGui.ResetOnSpawn = false
+    cursorGui.IgnoreGuiInset = true
+    cursorGui.DisplayOrder = 2147483647
+    cursorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    pcall(function() if syn and syn.protect_gui then syn.protect_gui(cursorGui) end end)
+    cursorGui.Parent = GuiParent
+    local cRoot = Instance.new('Frame')
+    cRoot.BackgroundTransparency = 1
+    cRoot.Size = UDim2.fromOffset(0, 0)
+    cRoot.Visible = false
+    cRoot.Parent = cursorGui
+
+    local WHITE = Color3.new(1, 1, 1)
+    local anim
+
+    local function circle(size, x, y, fill, fillT, strokeCol, strokeW, strokeT)
+        local f = Instance.new('Frame')
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.Size = UDim2.fromOffset(size, size)
+        f.Position = UDim2.fromOffset(x, y)
+        f.BackgroundColor3 = fill
+        f.BackgroundTransparency = fillT or 0
+        f.BorderSizePixel = 0
+        local c = Instance.new('UICorner')
+        c.CornerRadius = UDim.new(1, 0)
+        c.Parent = f
+        if strokeCol then
+            local st = Instance.new('UIStroke')
+            st.Color = strokeCol
+            st.Thickness = strokeW or 1
+            st.Transparency = strokeT or 0
+            st.Parent = f
+        end
+        f.Parent = cRoot
+        return f
+    end
+
+    local function block(w, h, x, y, fill, fillT, rot, radius)
+        local f = Instance.new('Frame')
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.Size = UDim2.fromOffset(w, h)
+        f.Position = UDim2.fromOffset(x, y)
+        f.BackgroundColor3 = fill
+        f.BackgroundTransparency = fillT or 0
+        f.BorderSizePixel = 0
+        f.Rotation = rot or 0
+        local c = Instance.new('UICorner')
+        c.CornerRadius = UDim.new(0, radius or 2)
+        c.Parent = f
+        f.Parent = cRoot
+        return f
+    end
+
+    local builders = {}
+    builders.Dark = function(k)
+        circle(22 * k, 0, 0, Color3.new(0, 0, 0), 0.82)
+        circle(10 * k, 0, 0, Color3.fromRGB(12, 12, 14), 0, Color3.fromRGB(80, 80, 90), 1.5, 0)
+    end
+    builders.White = function(k)
+        circle(22 * k, 0, 0, Color3.new(0, 0, 0), 0.85)
+        circle(10 * k, 0, 0, WHITE, 0, Color3.new(0, 0, 0), 1.5, 0.2)
+    end
+    builders.Angelic = function(k)
+        circle(28 * k, 0, 0, Color3.fromRGB(255, 245, 200), 0.82)
+        local lw = block(16 * k, 6 * k, -10 * k, -1 * k, WHITE, 0.25, -25, 99)
+        local rw = block(16 * k, 6 * k, 10 * k, -1 * k, WHITE, 0.25, 25, 99)
+        block(10 * k, 4 * k, -9 * k, 3 * k, WHITE, 0.4, -10, 99)
+        block(10 * k, 4 * k, 9 * k, 3 * k, WHITE, 0.4, 10, 99)
+        local halo = block(14 * k, 5 * k, 0, -12 * k, WHITE, 1, 0, 99)
+        local hs = Instance.new('UIStroke')
+        hs.Color = Color3.fromRGB(255, 222, 120)
+        hs.Thickness = 2
+        hs.Parent = halo
+        circle(8 * k, 0, 0, WHITE, 0, Color3.fromRGB(255, 230, 150), 1.5, 0.2)
+        anim = function(t)
+            halo.Position = UDim2.fromOffset(0, -12 * k + math.sin(t * 2.2) * 1.6 * k)
+            local flap = math.sin(t * 5) * 9
+            lw.Rotation = -25 - flap
+            rw.Rotation = 25 + flap
+        end
+    end
+    builders.Bubbly = function(k)
+        circle(16 * k, 0, 0, Color3.fromRGB(150, 215, 255), 0.55, WHITE, 1.5, 0.25)
+        circle(4 * k, -3 * k, -3 * k, WHITE, 0.15)
+        local orbs = {}
+        for i = 1, 3 do
+            orbs[i] = circle((7 - i) * k, 0, 0, Color3.fromRGB(190, 235, 255), 0.5, WHITE, 1, 0.4)
+        end
+        anim = function(t)
+            for i, b in ipairs(orbs) do
+                local a = t * (1.2 + i * 0.5) + i * 2.1
+                local r = (13 + i * 3 + math.sin(t * 2 + i) * 2) * k
+                b.Position = UDim2.fromOffset(math.cos(a) * r, math.sin(a) * r)
+            end
+        end
+    end
+    builders.Neon = function(k)
+        local cyan = Color3.fromRGB(80, 220, 255)
+        local outer = circle(24 * k, 0, 0, cyan, 1, cyan, 1, 0.65)
+        circle(16 * k, 0, 0, cyan, 1, cyan, 2, 0)
+        circle(4 * k, 0, 0, cyan, 0)
+        anim = function(t)
+            local s2 = (24 + math.sin(t * 3) * 3) * k
+            outer.Size = UDim2.fromOffset(s2, s2)
+        end
+    end
+    builders.Star = function(k)
+        local gold = Color3.fromRGB(255, 215, 100)
+        local a = block(12 * k, 12 * k, 0, 0, gold, 0, 0, 2)
+        local b = block(12 * k, 12 * k, 0, 0, gold, 0, 45, 2)
+        circle(4 * k, 0, 0, WHITE, 0)
+        anim = function(t)
+            a.Rotation = t * 70
+            b.Rotation = t * 70 + 45
+        end
+    end
+    builders.Rainbow = function(k)
+        local dot = circle(10 * k, 0, 0, WHITE, 0, WHITE, 1.5, 0.3)
+        local ring = circle(20 * k, 0, 0, WHITE, 1, WHITE, 2, 0)
+        local rs = ring:FindFirstChildOfClass('UIStroke')
+        anim = function(t)
+            dot.BackgroundColor3 = Color3.fromHSV((t * 0.4) % 1, 0.8, 1)
+            rs.Color = Color3.fromHSV((t * 0.4 + 0.5) % 1, 0.8, 1)
+        end
+    end
+    builders.Ring = function(k)
+        circle(18 * k, 0, 0, WHITE, 1, WHITE, 2, 0)
+        circle(3 * k, 0, 0, WHITE, 0)
+    end
+    builders.Crimson = function(k)
+        circle(22 * k, 0, 0, Color3.fromRGB(225, 45, 65), 0.8)
+        circle(10 * k, 0, 0, Color3.fromRGB(225, 45, 65), 0, Color3.fromRGB(60, 8, 14), 1.5, 0)
+    end
+    builders.Mint = function(k)
+        circle(22 * k, 0, 0, Color3.fromRGB(60, 210, 160), 0.8)
+        circle(10 * k, 0, 0, Color3.fromRGB(60, 210, 160), 0, Color3.fromRGB(10, 50, 38), 1.5, 0)
+    end
+
+    local shown, prevIcon = false, true
+    local function rebuild()
+        cRoot:ClearAllChildren()
+        anim = nil
+        local build = builders[Options.CursorStyle.Value] or builders.Dark
+        build(Options.CursorSize.Value / 100)
+    end
+    Options.CursorStyle:OnChanged(function() if shown then rebuild() end end)
+    Options.CursorSize:OnChanged(function() if shown then rebuild() end end)
+
+    table.insert(connections, RunService.RenderStepped:Connect(function()
+        if Toggles.CustomCursor.Value and not Library.Unloaded then
+            if not shown then
+                shown = true
+                prevIcon = UserInputService.MouseIconEnabled
+                cRoot.Visible = true
+                rebuild()
+            end
+            UserInputService.MouseIconEnabled = false
+            local m = UserInputService:GetMouseLocation()
+            cRoot.Position = UDim2.fromOffset(m.X, m.Y)
+            if anim then anim(os.clock()) end
+        elseif shown then
+            shown = false
+            cRoot.Visible = false
+            UserInputService.MouseIconEnabled = prevIcon
+        end
+    end))
+
+    Library:OnUnload(function()
+        if shown then UserInputService.MouseIconEnabled = prevIcon end
+        pcall(function() cursorGui:Destroy() end)
+    end)
+end
+
+if IS_MM2 then
+    local GodGroup = Tabs.MM2HVH:AddRightGroupbox('God mode (knife dodge)')
+    GodGroup:AddToggle('MM2God', { Text = 'God mode (auto dodge thrown knives)', Default = false,
+        Tooltip = 'Steps you sideways when a thrown knife is flying at you. Cannot stop gun shots or stabs.' })
+    GodGroup:AddSlider('MM2GodRange', { Text = 'Detect range (studs)', Default = 28, Min = 10, Max = 60, Rounding = 0 })
+    GodGroup:AddSlider('MM2GodDist', { Text = 'Dodge distance (studs)', Default = 9, Min = 4, Max = 20, Rounding = 0 })
+
+    local knives, lastPos = {}, {}
+    local function isKnifeProjectile(inst)
+        if not inst:IsA('BasePart') then return false end
+        if not inst.Name:lower():find('knife') then return false end
+        if inst:FindFirstAncestorOfClass('Backpack') or inst:FindFirstAncestorOfClass('Tool') then return false end
+        local m = inst:FindFirstAncestorOfClass('Model')
+        if m and Players:GetPlayerFromCharacter(m) then return false end
+        return true
+    end
+    local function trackKnife(inst)
+        if knives[inst] or not isKnifeProjectile(inst) then return end
+        knives[inst] = true
+        inst.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                knives[inst] = nil
+                lastPos[inst] = nil
+            end
+        end)
+    end
+    for _, d in ipairs(workspace:GetDescendants()) do trackKnife(d) end
+    table.insert(connections, workspace.DescendantAdded:Connect(trackKnife))
+
+    local cooldown = 0
+    table.insert(connections, RunService.Heartbeat:Connect(function(dt)
+        if Library.Unloaded then return end
+        if not Toggles.MM2God.Value then
+            table.clear(lastPos)
+            return
+        end
+        cooldown = cooldown - dt
+        local hrp = getHRP(LocalPlayer)
+        if not hrp or not isAlive(LocalPlayer) then return end
+        local range = Options.MM2GodRange.Value
+        for part in pairs(knives) do
+            if part.Parent then
+                local pos = part.Position
+                local prev = lastPos[part]
+                lastPos[part] = pos
+                if prev and cooldown <= 0 then
+                    local vel = (pos - prev) / math.max(dt, 1 / 240)
+                    local toMe = hrp.Position - pos
+                    local dist = toMe.Magnitude
+                    if dist <= range and vel.Magnitude > 20 and vel:Dot(toMe) / (vel.Magnitude * math.max(dist, 0.01)) > 0.6 then
+                        local side = vel.Unit:Cross(Vector3.yAxis)
+                        if side.Magnitude < 0.1 then side = hrp.CFrame.RightVector end
+                        side = side.Unit * (math.random() < 0.5 and 1 or -1)
+                        hrp.CFrame = hrp.CFrame + side * Options.MM2GodDist.Value
+                        cooldown = 0.35
+                        break
+                    end
+                end
+            else
+                knives[part] = nil
+                lastPos[part] = nil
+            end
+        end
+    end))
+end
+
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -4100,5 +5094,5 @@ ThemeManager:ApplyToTab(Tabs['UI Settings'])
 SaveManager:LoadAutoloadConfig()
 clearAllKeybinds()
 
-Library:Notify(IS_MM2 and 'FwSerial loaded (MM2 detected) - press END to hide / show' or 'FwSerial loaded - press END to hide / show', 5)
+Library:Notify(IS_MM2 and 'FwSerial loaded (MM2 detected)' or 'FwSerial loaded', 5)
 end
