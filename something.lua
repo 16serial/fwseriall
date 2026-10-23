@@ -1,13 +1,4 @@
--- iOS style script loader
---   Script 1 = Universal
---   Script 2 = Candy Collector
--- Paste your scripts into SCRIPT_1 / SCRIPT_2 below (between the [==[ and ]==]).
--- Or leave them empty and put a link in SCRIPT_1_URL / SCRIPT_2_URL instead.
-
--- =====================================================================
--- SCRIPT 1 : Universal
--- =====================================================================
-local SCRIPT_1_URL = "" -- optional, e.g. "https://raw.githubusercontent.com/user/repo/main/universal.lua"
+local SCRIPT_1_URL = ""
 local SCRIPT_1 = [==[local KEYS = { ["16serial"] = true }
 local KEY_FILE = "FwSerial_key.txt"
 
@@ -5092,7 +5083,6 @@ if IS_MM2 then
     end))
 end
 
-
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -5108,14 +5098,9 @@ clearAllKeybinds()
 Library:Notify(IS_MM2 and 'FwSerial loaded (MM2 detected)' or 'FwSerial loaded', 5)
 end
 
--- PASTE SCRIPT 1 (Universal) HERE
-
 ]==]
 
--- =====================================================================
--- SCRIPT 2 : Candy Collector
--- =====================================================================
-local SCRIPT_2_URL = "" -- optional
+local SCRIPT_2_URL = ""
 local SCRIPT_2 = [==[local TweenService = game:GetService("TweenService")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -6116,7 +6101,6 @@ local function getHRP(p) local c = getChar(p) return c and c:FindFirstChild("Hum
 local function getHum(p) local c = getChar(p) return c and c:FindFirstChildOfClass("Humanoid") end
 local function isAlive(p) local h = getHum(p) return h ~= nil and h.Health > 0 end
 
--- forward declarations (used by menu buttons before they are defined)
 local rescan, panic, killAll
 local killToken = 0
 local bagInfoLabel
@@ -6352,7 +6336,7 @@ local function trackCoin(inst)
         if parent then return end
         coins[part] = nil
         lastProgress = os.clock()
-        if seenTaken[part] then return end -- already counted by the taken detector
+        if seenTaken[part] then return end
         local hrp = getHRP(LP)
         if hrp and (part.Position - hrp.Position).Magnitude <= 40 then stats.collected += 1 else stats.others = (stats.others or 0) + 1 end
     end)
@@ -6371,8 +6355,6 @@ table.insert(connections, workspace.DescendantAdded:Connect(trackCoin))
 Options.ExtraNames:OnChanged(function() rescan() end)
 if not IS_MM2 then Library:Notify("This is not Murder Mystery 2, candy detection may find nothing.", 6, "warn") end
 
--- ===== candy-taken detector =====
--- A candy counts as taken when: it is gone, untouchable, flagged Collected, or its visual child got hidden.
 local function visualHidden(part)
     local found, hidden = false, true
     for _, c in ipairs(part:GetChildren()) do
@@ -6440,7 +6422,7 @@ local function scanCandy()
     local now = os.clock()
     for part in pairs(coins) do
         if part.Parent then
-            -- progress tracking: a candy that just got hidden near us = collected
+
             if Toggles.TakenDetect.Value then
                 if collectedNow(part) then
                     if not seenTaken[part] then
@@ -6660,7 +6642,6 @@ local function drawCandy()
     local target = cand.order[1]
     local used = 0
 
-    -- while auto grinding, only draw the 2 candies we are going for
     local onlyTwo = Toggles.OnlyTwo.Value and Toggles.Grind.Value
     local drawList = cand.list
     if onlyTwo then
@@ -6877,7 +6858,6 @@ local function hover(hrp, secs, token)
     return true
 end
 
--- slow mode: stay where we are (no CFrame snapping onto the candy) and just send touches until it is taken
 local function settle(hrp, part, token)
     local t0 = os.clock()
     local cf = hrp.CFrame
@@ -6925,7 +6905,7 @@ local function recordResult(part)
     local f = (failCount[part] or 0) + 1
     failCount[part] = f
     failUntil[part] = os.clock() + math.min(2 * f, 12)
-    -- ghost candy: we stood on it twice and nothing happened, ignore it for a while
+
     if f >= 2 then ghostUntil[part] = os.clock() + 25 end
     consecFail += 1
     if consecFail >= 3 then bagGuessUntil = os.clock() + 6 end
@@ -6939,7 +6919,6 @@ local function recordResult(part)
     end
 end
 
--- ===== bag full detection + kill all =====
 local killBusy, killDone = false, false
 local bagFullGui, bagCheckT = false, 0
 
@@ -7013,7 +6992,7 @@ local function bagEmptied()
     if not Toggles.CandyESP.Value then Toggles.CandyESP:SetValue(true) end
     Library:Notify("Bag is empty - ESP back on", 3)
 end
--- a new round respawns you with an empty bag
+
 table.insert(connections, LP.CharacterAdded:Connect(function()
     task.wait(1)
     if fullHandled then bagEmptied() end
@@ -7044,7 +7023,7 @@ local function pickEntry()
         lastProgress = now
         return nil
     end
-    -- stuck between the two best candies: nothing collected for N seconds -> random one
+
     if Toggles.RandomUnstick.Value and #avail > 1 and now - lastProgress > Options.StuckTime.Value then
         local pool, safe = {}, {}
         for i = 3, #avail do
@@ -7107,7 +7086,6 @@ local function grindRun(token)
     if not ok then Library:Notify("Grind error: " .. tostring(err), 6, "bad") end
 end
 
--- ===== kill all (murderer) =====
 local function getKnife()
     local char = getChar(LP)
     local k = char and char:FindFirstChild("Knife")
@@ -7132,7 +7110,7 @@ local function stab(tp, tok)
         if tok ~= killToken or Library.Unloaded or not isAlive(LP) then return false end
         local myHrp, thrp = getHRP(LP), getHRP(tp)
         if not myHrp or not thrp then break end
-        myHrp.CFrame = thrp.CFrame * CFrame.new(0, 0, 2) -- right behind them
+        myHrp.CFrame = thrp.CFrame * CFrame.new(0, 0, 2)
         myHrp.AssemblyLinearVelocity = Vector3.zero
         local c = getChar(LP)
         local knife = c and c:FindFirstChild("Knife")
@@ -7188,7 +7166,6 @@ killAll = function()
     if tok == killToken then Library:Notify("Kill all finished (" .. killed .. " down)", 3) end
 end
 
--- ===== auto pick up dropped gun =====
 local gunDrops = {}
 local gunSkip = setmetatable({}, { __mode = "k" })
 local function trackGun(inst)
@@ -7218,7 +7195,7 @@ local function gunRun(drop)
     local hum = getHum(LP)
     local ok, err = pcall(function()
         local function got() return holdsTool(LP, "Gun") end
-        -- 1) touch signal only
+
         local t0 = os.clock()
         while drop.Parent and os.clock() - t0 < 1 and not got() do
             local hrp = getHRP(LP)
@@ -7230,7 +7207,7 @@ local function gunRun(drop)
             task.wait(0.1)
         end
         if got() or not drop.Parent then return end
-        -- 2) fly there
+
         if not Toggles.AutoGunFly.Value or not hum then return end
         local speed = Toggles.SlowFly.Value and Options.SlowSpeed.Value or Options.FlySpeed.Value
         engage(hum)
@@ -7270,7 +7247,7 @@ task.spawn(function()
         if os.clock() - bagCheckT > 0.5 then
             bagCheckT = os.clock()
             bagFullGui = readBag()
-            -- server-confirmed pickup: the bag counter went up
+
             local c = bagCountVal
             if c then
                 if bagPrev and c > bagPrev then
@@ -7278,7 +7255,7 @@ task.spawn(function()
                     lastBagUp = os.clock()
                     lastProgress = os.clock()
                 end
-                -- empty only counts after we handled a full bag, and only if it stays at 0 for a moment
+
                 if fullHandled and c == 0 then zeroSince = zeroSince or os.clock() else zeroSince = nil end
                 if fullHandled and zeroSince and os.clock() - zeroSince > 1.5 and os.clock() - fullAt > 5 then bagEmptied() end
                 bagPrev = c
@@ -7297,7 +7274,7 @@ task.spawn(function()
             fullHandled, fullAt, zeroSince = true, os.clock(), nil
             Library:Notify("Bag is full (" .. Options.BagMax.Value .. ") - auto grind + ESP turned off", 4, "warn")
         end
-        -- while the bag is full everything stays fully off until it is empty again
+
         if fullHandled then
             for _, n in ipairs({ "Grind", "CandyWalk", "TouchAura", "CandyESP" }) do
                 if Toggles[n] and Toggles[n].Value then Toggles[n]:SetValue(false) end
@@ -7320,7 +7297,6 @@ task.spawn(function()
     end
 end)
 
--- ===== noclip (walls + floors) while flying / teleporting / under map =====
 local function noclipStep()
     if not (engaged or Toggles.UnderMap.Value) then return end
     local c = getChar(LP)
@@ -7342,8 +7318,6 @@ end
 table.insert(connections, RunService.Stepped:Connect(noclipStep))
 table.insert(connections, RunService.Heartbeat:Connect(noclipStep))
 
--- ===== avatar under map (testing) =====
--- Moves only the visual body down relative to the root part (the hitbox stays in the map).
 local underJoint, underOrig = nil, nil
 local function restoreUnder()
     if underJoint and underJoint.Parent then pcall(function() underJoint.C1 = underOrig end) end
@@ -7425,7 +7399,7 @@ Toggles.CandyWalk:OnChanged(function()
 end)
 Toggles.KillAll:OnChanged(function()
     if not Toggles.KillAll.Value then
-        killToken += 1 -- turning it off also aborts a running kill all
+        killToken += 1
     end
 end)
 Toggles.UnderMap:OnChanged(function()
@@ -7558,7 +7532,6 @@ local function updateHud(dt)
     hudDot.BackgroundColor3 = c
 end
 
--- ===== sky safety =====
 local skyT, lastGroundCF = 0, nil
 local skyParams = RaycastParams.new()
 skyParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -7591,7 +7564,7 @@ local function skyStep(dt)
     Toggles.Grind:SetValue(false)
     Library:Notify("Sky safety: back on the ground, auto grind off", 4, "warn")
     task.spawn(function()
-        task.wait(0.2) -- let the grind loop release the character first
+        task.wait(0.2)
         local h2 = getHRP(LP)
         if not h2 then return end
         local g = groundBelow(h2)
@@ -7681,15 +7654,10 @@ end)
 
 Library:Notify(IS_MM2 and "FwSerial | Candy loaded (MM2 detected)" or "FwSerial | Candy loaded", 4)
 
--- PASTE SCRIPT 2 (Candy Collector) HERE
-
 ]==]
 
-local CLOSE_AFTER_LOAD = true -- the loader plays its close animation after a script loads
+local CLOSE_AFTER_LOAD = true
 
--- =====================================================================
--- GUI
--- =====================================================================
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GuiParent = (gethui and gethui()) or game:GetService("CoreGui")
@@ -7725,7 +7693,6 @@ local gui = make("ScreenGui", {
 pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
 gui.Parent = GuiParent
 
--- frosted backdrop: blurs the game behind the loader (removed again when it closes)
 local Lighting = game:GetService("Lighting")
 pcall(function()
     for _, v in ipairs(Lighting:GetChildren()) do
@@ -7734,7 +7701,6 @@ pcall(function()
 end)
 local blur = make("BlurEffect", { Name = "IOSLoaderBlur", Size = 0 }, Lighting)
 
--- glass card: translucent tint + soft top shine + bright edge highlight
 local card = make("CanvasGroup", {
     Size = UDim2.fromOffset(310, 280), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
     BackgroundColor3 = Color3.fromRGB(38, 40, 52), BackgroundTransparency = 0.38, BorderSizePixel = 0,
@@ -7759,7 +7725,6 @@ make("UIGradient", {
 }, shine)
 local cardScale = make("UIScale", { Scale = 0.8 }, card)
 
--- grabber (iOS sheet handle) - drag the card by the top area
 local header = make("Frame", { Size = UDim2.new(1, 0, 0, 70), BackgroundTransparency = 1, Active = true }, card)
 make("Frame", {
     AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(40, 5),
@@ -7776,7 +7741,6 @@ make("TextLabel", {
     TextSize = 12, TextColor3 = GRAY, Text = "Choose a script to load",
 }, header)
 
--- close button (circle with an x, like iOS sheets)
 local closeBtn = make("TextButton", {
     AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 16), Size = UDim2.fromOffset(28, 28),
     BackgroundColor3 = Color3.fromRGB(235, 235, 245), BackgroundTransparency = 0.82, BorderSizePixel = 0, Text = "×",
@@ -7785,13 +7749,11 @@ local closeBtn = make("TextButton", {
 round(closeBtn, 14)
 make("UIStroke", { Color = WHITE, Transparency = 0.7, Thickness = 1 }, closeBtn)
 
--- status line
 local status = make("TextLabel", {
     AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16), Size = UDim2.new(1, -32, 0, 18),
     BackgroundTransparency = 1, Font = FONT, TextSize = 12, TextColor3 = GRAY, Text = "Ready",
 }, card)
 
--- buttons --------------------------------------------------------------
 local buttons = {}
 local function makeButton(y, title, subtitle, color)
     local b = make("TextButton", {
@@ -7804,7 +7766,7 @@ local function makeButton(y, title, subtitle, color)
         Rotation = 90,
         Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(1, 0.85) }),
     }, bStroke)
-    -- glossy highlight on the top half of the button
+
     local gloss = make("Frame", {
         Size = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = WHITE, BackgroundTransparency = 0.88, BorderSizePixel = 0,
     }, b)
@@ -7826,7 +7788,7 @@ local function makeButton(y, title, subtitle, color)
         AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(20, 30),
         BackgroundTransparency = 1, Font = FONT_BOLD, TextSize = 24, TextColor3 = WHITE, TextTransparency = 0.3, Text = "›",
     }, b)
-    -- hover / press animations
+
     b.MouseEnter:Connect(function()
         tween(b, 0.15, { BackgroundTransparency = 0.18 })
         tween(chev, 0.2, { Position = UDim2.new(1, -12, 0.5, 0) })
@@ -7849,15 +7811,12 @@ local btn2 = makeButton(158, "Load Script 2", "Candy Collector", GLASS_GRAY)
 closeBtn.MouseEnter:Connect(function() tween(closeBtn, 0.15, { BackgroundTransparency = 0.6, TextColor3 = WHITE }) end)
 closeBtn.MouseLeave:Connect(function() tween(closeBtn, 0.15, { BackgroundTransparency = 0.82, TextColor3 = Color3.fromRGB(220, 220, 230) }) end)
 
--- =====================================================================
--- Open / close animations
--- =====================================================================
 local closing = false
 local function openLoader()
     tween(blur, 0.6, { Size = 18 })
     tween(card, 0.35, { GroupTransparency = 0 })
     tween(cardScale, 0.55, { Scale = 1 }, Enum.EasingStyle.Back)
-    -- buttons slide up one after another
+
     for i, b in ipairs(buttons) do
         local target = b.Position
         b.Position = target + UDim2.fromOffset(0, 24)
@@ -7881,7 +7840,6 @@ end
 
 closeBtn.MouseButton1Click:Connect(closeLoader)
 
--- drag by the header
 do
     local dragging, startInput, startPos
     header.InputBegan:Connect(function(i)
@@ -7902,9 +7860,6 @@ do
     end)
 end
 
--- =====================================================================
--- Loading
--- =====================================================================
 local function setStatus(text, color)
     status.Text = text
     tween(status, 0.2, { TextColor3 = color or GRAY })
@@ -7919,7 +7874,6 @@ local function load(name, src, url)
     if busy or closing then return end
     busy = true
 
-    -- animated "Loading..." dots
     local spinning = true
     task.spawn(function()
         local n = 0
