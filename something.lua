@@ -1,4 +1,14 @@
-local KEYS = { ["16serial"] = true }
+-- iOS style script loader
+--   Script 1 = Universal
+--   Script 2 = Candy Collector
+-- Paste your scripts into SCRIPT_1 / SCRIPT_2 below (between the [==[ and ]==]).
+-- Or leave them empty and put a link in SCRIPT_1_URL / SCRIPT_2_URL instead.
+
+-- =====================================================================
+-- SCRIPT 1 : Universal
+-- =====================================================================
+local SCRIPT_1_URL = "" -- optional, e.g. "https://raw.githubusercontent.com/user/repo/main/universal.lua"
+local SCRIPT_1 = [==[local KEYS = { ["16serial"] = true }
 local KEY_FILE = "FwSerial_key.txt"
 
 local function KeyGate()
@@ -5082,6 +5092,7 @@ if IS_MM2 then
     end))
 end
 
+
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -5096,3 +5107,2860 @@ clearAllKeybinds()
 
 Library:Notify(IS_MM2 and 'FwSerial loaded (MM2 detected)' or 'FwSerial loaded', 5)
 end
+
+-- PASTE SCRIPT 1 (Universal) HERE
+
+]==]
+
+-- =====================================================================
+-- SCRIPT 2 : Candy Collector
+-- =====================================================================
+local SCRIPT_2_URL = "" -- optional
+local SCRIPT_2 = [==[local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local PathfindingService = game:GetService("PathfindingService")
+local GuiParent = (gethui and gethui()) or game:GetService("CoreGui")
+local LP = Players.LocalPlayer
+
+local KEYS = { ["16serial"] = true }
+local KEY_FILE = "FwSerial_key.txt"
+
+local WHITE, BLACK = Color3.new(1, 1, 1), Color3.new(0, 0, 0)
+local TH = {
+    Accent = Color3.fromRGB(10, 132, 255),
+    Good = Color3.fromRGB(52, 199, 89),
+    Bad = Color3.fromRGB(255, 69, 58),
+    Warn = Color3.fromRGB(255, 159, 10),
+    Txt = Color3.fromRGB(245, 245, 250),
+    Dim = Color3.fromRGB(160, 160, 176),
+    Glass = Color3.fromRGB(20, 20, 26),
+}
+local FONT, FONTB = Enum.Font.GothamMedium, Enum.Font.GothamBold
+local NSK = NumberSequenceKeypoint.new
+
+local function mk(class, props, parent)
+    local o = Instance.new(class)
+    for k, v in pairs(props) do o[k] = v end
+    if parent then o.Parent = parent end
+    return o
+end
+
+local function tw(o, t, props, style, dir)
+    local x = TweenService:Create(o, TweenInfo.new(t, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out), props)
+    x:Play()
+    return x
+end
+
+local function rnd(p, r)
+    return mk("UICorner", { CornerRadius = UDim.new(0, r) }, p)
+end
+
+local function circ(p)
+    return mk("UICorner", { CornerRadius = UDim.new(1, 0) }, p)
+end
+
+local function stroke(p, c, tr, th)
+    return mk("UIStroke", {
+        Color = c or WHITE, Transparency = tr or 0.8, Thickness = th or 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, p)
+end
+
+local function glass(f, r)
+    rnd(f, r)
+    local s = stroke(f, WHITE, 0, 1.2)
+    mk("UIGradient", {
+        Transparency = NumberSequence.new({ NSK(0, 0.3), NSK(0.5, 0.86), NSK(1, 0.6) }), Rotation = 45,
+    }, s)
+    local sh = mk("Frame", { Name = "Sheen", Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, f)
+    rnd(sh, r)
+    mk("UIGradient", {
+        Transparency = NumberSequence.new({ NSK(0, 0.84), NSK(0.45, 0.96), NSK(1, 0.99) }), Rotation = 90,
+    }, sh)
+    return s
+end
+
+local function KeyGate()
+    local function verify(k)
+        k = tostring(k or ""):match("^%s*(.-)%s*$"):lower()
+        if k == "" then return false, "Enter a key." end
+        if KEYS[k] == true then return true end
+        return false, "Invalid key."
+    end
+
+    local saved
+    pcall(function() if isfile and isfile(KEY_FILE) then saved = readfile(KEY_FILE) end end)
+    if saved and verify(saved) then return true end
+
+    local sg = mk("ScreenGui", {
+        Name = "FwSerialKey", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 200, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    })
+    pcall(function() if syn and syn.protect_gui then syn.protect_gui(sg) end end)
+    sg.Parent = GuiParent
+
+    local frame = mk("CanvasGroup", {
+        Size = UDim2.fromOffset(340, 214), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        BackgroundColor3 = TH.Glass, BackgroundTransparency = 0.18, BorderSizePixel = 0, GroupTransparency = 1,
+    }, sg)
+    glass(frame, 26)
+    local sc = mk("UIScale", { Scale = 0.88 }, frame)
+    tw(frame, 0.3, { GroupTransparency = 0 })
+    tw(sc, 0.5, { Scale = 1 }, Enum.EasingStyle.Back)
+
+    mk("TextLabel", {
+        Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, Font = FONTB,
+        TextSize = 20, TextColor3 = TH.Txt, Text = "FwSerial",
+    }, frame)
+    mk("TextLabel", {
+        Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1, Font = FONT,
+        TextSize = 12, TextColor3 = TH.Dim, Text = "Candy  -  enter your key to continue",
+    }, frame)
+
+    local dragging, dStart, dPos = false, nil, nil
+    local dragBar = mk("Frame", { Size = UDim2.new(1, -50, 0, 66), BackgroundTransparency = 1, Active = true }, frame)
+    local dragConns = {}
+    dragBar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging, dStart, dPos = true, i.Position, frame.Position
+        end
+    end)
+    table.insert(dragConns, UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - dStart
+            frame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
+        end
+    end))
+    table.insert(dragConns, UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end))
+
+    local box = mk("TextBox", {
+        Position = UDim2.fromOffset(22, 80), Size = UDim2.new(1, -44, 0, 38), BackgroundColor3 = WHITE, BackgroundTransparency = 0.9,
+        BorderSizePixel = 0, Font = FONT, TextSize = 14, TextColor3 = TH.Txt, Text = "", PlaceholderText = "key...",
+        PlaceholderColor3 = TH.Dim, ClearTextOnFocus = false,
+    }, frame)
+    rnd(box, 12)
+    local boxStroke = stroke(box, WHITE, 0.85, 1.2)
+    box.Focused:Connect(function() tw(boxStroke, 0.2, { Color = TH.Accent, Transparency = 0.2 }) end)
+    box.FocusLost:Connect(function() tw(boxStroke, 0.2, { Color = WHITE, Transparency = 0.85 }) end)
+
+    local status = mk("TextLabel", {
+        Position = UDim2.fromOffset(22, 122), Size = UDim2.new(1, -44, 0, 16), BackgroundTransparency = 1, Font = FONT,
+        TextSize = 12, TextColor3 = TH.Dim, Text = "press ENTER or Verify",
+    }, frame)
+
+    local btn = mk("TextButton", {
+        Position = UDim2.fromOffset(22, 148), Size = UDim2.new(1, -44, 0, 42), BackgroundColor3 = TH.Accent, BorderSizePixel = 0,
+        Font = FONTB, TextSize = 15, TextColor3 = WHITE, Text = "Verify", AutoButtonColor = false,
+    }, frame)
+    rnd(btn, 14)
+    local bs = mk("UIScale", {}, btn)
+    btn.MouseEnter:Connect(function() tw(btn, 0.15, { BackgroundColor3 = TH.Accent:Lerp(WHITE, 0.15) }) end)
+    btn.MouseLeave:Connect(function() tw(btn, 0.15, { BackgroundColor3 = TH.Accent }) tw(bs, 0.2, { Scale = 1 }) end)
+    btn.MouseButton1Down:Connect(function() tw(bs, 0.08, { Scale = 0.96 }) end)
+    btn.MouseButton1Up:Connect(function() tw(bs, 0.25, { Scale = 1 }, Enum.EasingStyle.Back) end)
+
+    local close = mk("TextButton", {
+        AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 14), Size = UDim2.fromOffset(24, 24),
+        BackgroundColor3 = TH.Bad, BackgroundTransparency = 0.2, BorderSizePixel = 0, Font = FONTB, TextSize = 12,
+        TextColor3 = WHITE, Text = "X", AutoButtonColor = false,
+    }, frame)
+    circ(close)
+
+    local done, ok, busy = false, false, false
+    local function submit()
+        if busy or done then return end
+        busy = true
+        status.TextColor3, status.Text = TH.Dim, "Checking..."
+        local good, reason = verify(box.Text)
+        if good then
+            status.TextColor3, status.Text = TH.Good, "Key accepted!"
+            tw(boxStroke, 0.2, { Color = TH.Good, Transparency = 0.1 })
+            pcall(function() if writefile then writefile(KEY_FILE, box.Text) end end)
+            task.wait(0.4)
+            ok, done = true, true
+        else
+            status.TextColor3, status.Text = TH.Bad, reason or "Invalid key."
+            tw(boxStroke, 0.15, { Color = TH.Bad, Transparency = 0.1 })
+            local base = frame.Position
+            for _, dx in ipairs({ 12, -12, 8, -8, 4, -4, 0 }) do
+                tw(frame, 0.04, { Position = base + UDim2.fromOffset(dx, 0) })
+                task.wait(0.04)
+            end
+            busy = false
+        end
+    end
+    btn.MouseButton1Click:Connect(submit)
+    box.FocusLost:Connect(function(enter) if enter then submit() end end)
+    close.MouseButton1Click:Connect(function() done = true end)
+
+    while not done do task.wait(0.1) end
+    for _, c in ipairs(dragConns) do c:Disconnect() end
+    tw(frame, 0.22, { GroupTransparency = 1 })
+    tw(sc, 0.25, { Scale = ok and 1.08 or 0.88 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    task.wait(0.28)
+    sg:Destroy()
+    return ok
+end
+
+if not KeyGate() then return end
+
+local Library = (function()
+    local L = { Options = {}, Toggles = {}, Unloaded = false, Accent = TH.Accent, UserScale = 1, BlurOn = false }
+    local Options, Toggles = L.Options, L.Toggles
+    local unloadFns, conns, accentBound = {}, {}, {}
+    local capturing, activeDrag, popup, popupOwner, main, mainScale
+    local isOpen = false
+    local blurFx
+    local MB1, TOUCH = Enum.UserInputType.MouseButton1, Enum.UserInputType.Touch
+
+    local function fire(list, ...)
+        for _, f in ipairs(list) do pcall(f, ...) end
+    end
+    local function round(v, r)
+        if r and r > 0 then
+            local m = 10 ^ r
+            return math.floor(v * m + 0.5) / m
+        end
+        return math.floor(v + 0.5)
+    end
+    local function keyName(input)
+        local t = input.UserInputType
+        if t == Enum.UserInputType.Keyboard then return input.KeyCode.Name end
+        if t == MB1 then return "MB1" end
+        if t == Enum.UserInputType.MouseButton2 then return "MB2" end
+        if t == Enum.UserInputType.MouseButton3 then return "MB3" end
+    end
+    local function lbl(parent, props)
+        props.BackgroundTransparency = 1
+        props.TextColor3 = props.TextColor3 or TH.Txt
+        props.Font = props.Font or FONT
+        props.TextSize = props.TextSize or 13
+        props.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Left
+        return mk("TextLabel", props, parent)
+    end
+    local function bindAccent(o, prop)
+        table.insert(accentBound, { o, prop })
+        o[prop] = L.Accent
+    end
+    local function hoverPill(btn, base, hov)
+        local sc = mk("UIScale", {}, btn)
+        btn.AutoButtonColor = false
+        btn.MouseEnter:Connect(function() tw(btn, 0.15, { BackgroundTransparency = hov }) end)
+        btn.MouseLeave:Connect(function() tw(btn, 0.15, { BackgroundTransparency = base }) tw(sc, 0.2, { Scale = 1 }) end)
+        btn.MouseButton1Down:Connect(function() tw(sc, 0.08, { Scale = 0.96 }) end)
+        btn.MouseButton1Up:Connect(function() tw(sc, 0.25, { Scale = 1 }, Enum.EasingStyle.Back) end)
+    end
+
+    local gui = mk("ScreenGui", {
+        Name = "FwSerialUI", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 100, IgnoreGuiInset = true,
+    })
+    pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
+    gui.Parent = GuiParent
+    L.Gui = gui
+
+    setmetatable(L, { __index = function(_, k)
+        if k == "Toggled" then return isOpen or capturing ~= nil end
+    end })
+
+    function L:IsCapturing() return capturing ~= nil end
+    function L:OnUnload(f) table.insert(unloadFns, f) end
+    function L:Unload()
+        if L.Unloaded then return end
+        L.Unloaded = true
+        for _, f in ipairs(unloadFns) do pcall(f) end
+        for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+        if blurFx then pcall(function() blurFx:Destroy() end) end
+        pcall(function() gui:Destroy() end)
+    end
+
+    function L:UpdateBlur()
+        local want = L.BlurOn and isOpen
+        if want and not blurFx then
+            blurFx = mk("BlurEffect", { Name = "FwSerialBlur", Size = 0 }, Lighting)
+        end
+        if blurFx then
+            tw(blurFx, 0.3, { Size = want and 16 or 0 })
+            if not want then
+                local b = blurFx
+                task.delay(0.4, function()
+                    if blurFx == b and not (L.BlurOn and isOpen) then
+                        pcall(function() b:Destroy() end)
+                        blurFx = nil
+                    end
+                end)
+            end
+        end
+    end
+
+    function L:Toggle()
+        if not main then return end
+        isOpen = not isOpen
+        if popup then popup:Destroy() popup, popupOwner = nil, nil end
+        if isOpen then
+            main.Visible = true
+            tw(main, 0.28, { GroupTransparency = 0 })
+            tw(mainScale, 0.5, { Scale = L.UserScale }, Enum.EasingStyle.Back)
+        else
+            tw(main, 0.18, { GroupTransparency = 1 })
+            local t = tw(mainScale, 0.2, { Scale = 0.92 * L.UserScale }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            t.Completed:Connect(function() if not isOpen and main then main.Visible = false end end)
+        end
+        L:UpdateBlur()
+    end
+
+    function L:SetAccent(c)
+        L.Accent = c
+        for _, e in ipairs(accentBound) do
+            if e[1] and e[1].Parent then e[1][e[2]] = c end
+        end
+    end
+    function L:SetBlur(on) L.BlurOn = on and true or false L:UpdateBlur() end
+    function L:SetScale(v)
+        L.UserScale = v
+        if isOpen and mainScale then tw(mainScale, 0.2, { Scale = v }) end
+    end
+    function L:SetOpacity(a)
+        if main then main.BackgroundTransparency = 0.2 + a end
+    end
+
+    table.insert(conns, UIS.InputChanged:Connect(function(i)
+        if activeDrag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == TOUCH) then
+            activeDrag(i.Position.X, i.Position.Y)
+        end
+    end))
+    table.insert(conns, UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == MB1 or i.UserInputType == TOUCH then activeDrag = nil end
+    end))
+    table.insert(conns, UIS.InputBegan:Connect(function(input, processed)
+        if L.Unloaded then return end
+        if capturing then
+            local o = capturing
+            if o._done then return end
+            local name = keyName(input)
+            if input.KeyCode == Enum.KeyCode.Escape then
+                name = "None"
+            elseif not name or processed then
+                return
+            end
+            o._done = true
+            o.Value = name
+            o:_refresh()
+            fire(o.Changed, name)
+            task.delay(0.15, function()
+                if capturing == o then capturing = nil end
+                o._done = nil
+                o:_refresh()
+            end)
+            return
+        end
+        local mkb = Options.MenuKeybind
+        local bound = (mkb and mkb.Value) or "End"
+        if bound ~= "None" and UIS:GetFocusedTextBox() == nil and keyName(input) == bound then L:Toggle() end
+    end))
+
+    local toasts = mk("Frame", { Size = UDim2.fromOffset(380, 500), Position = UDim2.new(1, -392, 0, 56), BackgroundTransparency = 1 }, gui)
+    mk("UIListLayout", { Padding = UDim.new(0, 6) }, toasts)
+
+    function L:Notify(msg, secs, kind)
+        if L.Unloaded then return end
+        local holder = mk("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1 }, toasts)
+        local pill = mk("TextLabel", {
+            AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 400, 0, 0), AutomaticSize = Enum.AutomaticSize.X,
+            Size = UDim2.fromOffset(0, 34), BackgroundColor3 = TH.Glass, BackgroundTransparency = 0.12, BorderSizePixel = 0,
+            Font = FONT, TextSize = 13, TextColor3 = TH.Txt, Text = tostring(msg),
+        }, holder)
+        circ(pill)
+        mk("UIPadding", { PaddingLeft = UDim.new(0, 32), PaddingRight = UDim.new(0, 16) }, pill)
+        stroke(pill, WHITE, 0.75, 1)
+        local dot = mk("Frame", {
+            Position = UDim2.new(0, -20, 0.5, -4), Size = UDim2.fromOffset(8, 8), BorderSizePixel = 0,
+            BackgroundColor3 = kind == "bad" and TH.Bad or (kind == "warn" and TH.Warn or L.Accent),
+        }, pill)
+        circ(dot)
+        tw(pill, 0.5, { Position = UDim2.new(1, 0, 0, 0) }, Enum.EasingStyle.Back)
+        task.delay(secs or 3, function()
+            if not pill.Parent then return end
+            local t = tw(pill, 0.28, { Position = UDim2.new(1, 400, 0, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            t.Completed:Connect(function() holder:Destroy() end)
+        end)
+    end
+
+    local function addonBar(r, off)
+        local bar = r:FindFirstChild("Addons")
+        if bar then return bar end
+        bar = mk("Frame", {
+            Name = "Addons", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, off or 0, 0.5, 0), Size = UDim2.fromOffset(0, 22),
+            AutomaticSize = Enum.AutomaticSize.X, BackgroundTransparency = 1, ZIndex = 5,
+        }, r)
+        mk("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder,
+        }, bar)
+        return bar
+    end
+
+    local function addKeyPicker(r, idx, info, off)
+        info = info or {}
+        local o = { Type = "KeyPicker", Value = info.Default or "None", Mode = info.Mode or "Toggle", Text = info.Text or idx, Changed = {} }
+        local b = mk("TextButton", {
+            Size = UDim2.fromOffset(62, 20), BackgroundColor3 = WHITE, BackgroundTransparency = 0.88, BorderSizePixel = 0, Font = FONT,
+            TextSize = 11, TextColor3 = TH.Dim, Text = "[None]", ZIndex = 6, AutoButtonColor = false,
+        }, addonBar(r, off))
+        circ(b)
+        hoverPill(b, 0.88, 0.78)
+        function o:_refresh()
+            b.Text = (capturing == o and not o._done) and "[...]" or ("[" .. tostring(o.Value) .. "]")
+            b.TextColor3 = (capturing == o and not o._done) and L.Accent or TH.Dim
+        end
+        function o:OnChanged(f) table.insert(self.Changed, f) end
+        function o:SetValue(data)
+            if type(data) == "table" then self.Value = data[1] or "None"
+            elseif type(data) == "string" then self.Value = data end
+            self:_refresh()
+            fire(self.Changed, self.Value)
+        end
+        b.MouseButton1Click:Connect(function()
+            if capturing and capturing ~= o then
+                local old = capturing
+                capturing = nil
+                old:_refresh()
+            end
+            capturing = o
+            o._done = nil
+            o:_refresh()
+        end)
+        Options[idx] = o
+        o:_refresh()
+        return o
+    end
+
+    local function toHex(c)
+        return string.format("#%02X%02X%02X", math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5))
+    end
+
+    local function addColorPicker(r, idx, info, off)
+        info = info or {}
+        local o = { Type = "ColorPicker", Value = info.Default or WHITE, Changed = {} }
+        local H, S, V = o.Value:ToHSV()
+        local sw = mk("TextButton", {
+            Size = UDim2.fromOffset(28, 16), BackgroundColor3 = o.Value, BorderSizePixel = 0, Text = "", ZIndex = 6, AutoButtonColor = false,
+        }, addonBar(r, off))
+        circ(sw)
+        stroke(sw, WHITE, 0.6, 1)
+        local swS = mk("UIScale", {}, sw)
+        sw.MouseEnter:Connect(function() tw(swS, 0.15, { Scale = 1.12 }) end)
+        sw.MouseLeave:Connect(function() tw(swS, 0.15, { Scale = 1 }) end)
+        local ui
+        local function refreshUI()
+            if not ui or not ui.root.Parent then return end
+            ui.sGrad.Color = ColorSequence.new(WHITE, Color3.fromHSV(H, 1, 1))
+            ui.vGrad.Color = ColorSequence.new(BLACK, Color3.fromHSV(H, S, 1))
+            ui.hK.Position = UDim2.new(H, 0, 0.5, 0)
+            ui.sK.Position = UDim2.new(S, 0, 0.5, 0)
+            ui.vK.Position = UDim2.new(V, 0, 0.5, 0)
+            ui.prev.BackgroundColor3 = o.Value
+            if not ui.hex:IsFocused() then ui.hex.Text = toHex(o.Value) end
+        end
+        local function apply(h, s, v)
+            H, S, V = h, s, v
+            o.Value = Color3.fromHSV(h, s, v)
+            sw.BackgroundColor3 = o.Value
+            refreshUI()
+            fire(o.Changed, o.Value)
+        end
+        function o:SetValue(c)
+            local h, s, v = c:ToHSV()
+            if s == 0 or v == 0 then h = H end
+            H, S, V = h, s, v
+            self.Value = c
+            sw.BackgroundColor3 = c
+            refreshUI()
+            fire(self.Changed, c)
+        end
+        function o:OnChanged(f) table.insert(self.Changed, f) end
+
+        sw.MouseButton1Click:Connect(function()
+            if popup then
+                local same = popupOwner == o
+                popup:Destroy()
+                popup, popupOwner = nil, nil
+                if same then return end
+            end
+            local scr = gui.AbsoluteSize
+            local W, HH = 222, 168
+            local p = mk("Frame", {
+                Size = UDim2.fromOffset(W, HH), BackgroundColor3 = Color3.fromRGB(26, 26, 32), BackgroundTransparency = 0.06,
+                BorderSizePixel = 0, ZIndex = 60,
+                Position = UDim2.fromOffset(
+                    math.clamp(sw.AbsolutePosition.X - W + 40, 6, math.max(scr.X - W - 6, 6)),
+                    math.clamp(sw.AbsolutePosition.Y + 24, 6, math.max(scr.Y - HH - 6, 6))),
+            }, gui)
+            glass(p, 18)
+            local ps = mk("UIScale", { Scale = 0.88 }, p)
+            tw(ps, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+            popup, popupOwner = p, o
+            ui = { root = p }
+
+            local function track(y, name)
+                lbl(p, { Position = UDim2.fromOffset(12, y), Size = UDim2.fromOffset(14, 16), Text = name, TextColor3 = TH.Dim, TextSize = 11, ZIndex = 61 })
+                local bar = mk("Frame", {
+                    Position = UDim2.fromOffset(30, y + 4), Size = UDim2.new(1, -78, 0, 8), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 61,
+                }, p)
+                circ(bar)
+                local grad = mk("UIGradient", {}, bar)
+                local knob = mk("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(16, 16),
+                    BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 63,
+                }, bar)
+                circ(knob)
+                stroke(knob, BLACK, 0.75, 1)
+                local hit = mk("TextButton", {
+                    Position = UDim2.fromOffset(0, -8), Size = UDim2.new(1, 0, 1, 16), BackgroundTransparency = 1, Text = "", ZIndex = 64,
+                }, bar)
+                return bar, grad, knob, hit
+            end
+            local seq = {}
+            for i = 0, 6 do table.insert(seq, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(math.min(i / 6, 1), 1, 1))) end
+            local hBar, hGrad, hK, hHit = track(12, "H")
+            hGrad.Color = ColorSequence.new(seq)
+            local sBar, sGrad, sK, sHit = track(44, "S")
+            local vBar, vGrad, vK, vHit = track(76, "V")
+            ui.hK, ui.sK, ui.vK, ui.sGrad, ui.vGrad = hK, sK, vK, sGrad, vGrad
+
+            local function bind(hit, bar, fn)
+                hit.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == MB1 or inp.UserInputType == TOUCH then
+                        local function set(x) fn(math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)) end
+                        set(inp.Position.X)
+                        activeDrag = function(x) set(x) end
+                    end
+                end)
+            end
+            bind(hHit, hBar, function(f) apply(f, S, V) end)
+            bind(sHit, sBar, function(f) apply(H, f, V) end)
+            bind(vHit, vBar, function(f) apply(H, S, f) end)
+
+            local prev = mk("Frame", {
+                Position = UDim2.new(1, -40, 0, 12), Size = UDim2.fromOffset(28, 28), BackgroundColor3 = o.Value, BorderSizePixel = 0, ZIndex = 61,
+            }, p)
+            circ(prev)
+            stroke(prev, WHITE, 0.6, 1)
+            ui.prev = prev
+
+            local hex = mk("TextBox", {
+                Position = UDim2.fromOffset(12, 116), Size = UDim2.new(1, -24, 0, 34), BackgroundColor3 = WHITE, BackgroundTransparency = 0.9,
+                BorderSizePixel = 0, Font = FONT, TextSize = 13, TextColor3 = TH.Txt, Text = toHex(o.Value), ClearTextOnFocus = false, ZIndex = 61,
+            }, p)
+            rnd(hex, 10)
+            ui.hex = hex
+            hex.FocusLost:Connect(function()
+                local rr, gg, bb = hex.Text:match("^#?(%x%x)(%x%x)(%x%x)$")
+                if rr then
+                    o:SetValue(Color3.fromRGB(tonumber(rr, 16), tonumber(gg, 16), tonumber(bb, 16)))
+                else
+                    refreshUI()
+                end
+            end)
+            refreshUI()
+        end)
+        Options[idx] = o
+        return o
+    end
+
+    local function makeGroupbox(col, name)
+        local box = mk("Frame", {
+            Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = WHITE, BackgroundTransparency = 0.93,
+            BorderSizePixel = 0,
+        }, col)
+        rnd(box, 16)
+        stroke(box, WHITE, 0.88, 1)
+        mk("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, box)
+        mk("UIPadding", {
+            PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12), PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 12),
+        }, box)
+        local title = lbl(box, { Size = UDim2.new(1, 0, 0, 16), Text = string.upper(name), Font = FONTB, TextSize = 11, LayoutOrder = 0 })
+        bindAccent(title, "TextColor3")
+
+        local order = 0
+        local g = {}
+        local function row(h)
+            order += 1
+            return mk("Frame", { Size = UDim2.new(1, 0, 0, h), BackgroundTransparency = 1, LayoutOrder = order }, box)
+        end
+
+        function g:AddToggle(idx, info)
+            info = info or {}
+            local r = row(28)
+            local label = lbl(r, { Size = UDim2.new(1, -50, 1, 0), Text = info.Text or idx })
+            local track = mk("Frame", {
+                AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(42, 24),
+                BackgroundColor3 = Color3.fromRGB(72, 72, 84), BorderSizePixel = 0,
+            }, r)
+            circ(track)
+            local knob = mk("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(20, 20),
+                BackgroundColor3 = WHITE, BorderSizePixel = 0,
+            }, track)
+            circ(knob)
+            stroke(knob, BLACK, 0.85, 1)
+            local ks = mk("UIScale", {}, knob)
+            local o = { Type = "Toggle", Value = info.Default == true, Changed = {} }
+            local function paint(anim)
+                local on = o.Value
+                local pos = UDim2.new(0, on and 20 or 2, 0.5, 0)
+                local col2 = on and TH.Good or Color3.fromRGB(72, 72, 84)
+                if anim then
+                    tw(track, 0.22, { BackgroundColor3 = col2 })
+                    tw(knob, 0.3, { Position = pos }, Enum.EasingStyle.Back)
+                    ks.Scale = 1.15
+                    tw(ks, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+                else
+                    track.BackgroundColor3 = col2
+                    knob.Position = pos
+                end
+            end
+            paint(false)
+            function o:SetValue(v)
+                v = v and true or false
+                if self.Value == v then return end
+                self.Value = v
+                paint(true)
+                fire(self.Changed, v)
+            end
+            function o:OnChanged(f) table.insert(self.Changed, f) end
+            function o:AddKeyPicker(i, inf) return addKeyPicker(r, i, inf, -52) end
+            function o:AddColorPicker(i, inf) return addColorPicker(r, i, inf, -52) end
+            local btn = mk("TextButton", { Size = UDim2.new(1, -60, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 2 }, r)
+            local tb = mk("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(42, 24), BackgroundTransparency = 1, Text = "", ZIndex = 3 }, r)
+            local function flip() o:SetValue(not o.Value) end
+            btn.MouseButton1Click:Connect(flip)
+            tb.MouseButton1Click:Connect(flip)
+            btn.MouseEnter:Connect(function() tw(label, 0.15, { TextColor3 = WHITE }) end)
+            btn.MouseLeave:Connect(function() tw(label, 0.15, { TextColor3 = TH.Txt }) end)
+            Toggles[idx] = o
+            return o
+        end
+
+        function g:AddSlider(idx, info)
+            info = info or {}
+            local r = row(40)
+            lbl(r, { Size = UDim2.new(1, -70, 0, 16), Text = info.Text or idx })
+            local val = lbl(r, {
+                AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(70, 16),
+                TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = TH.Dim, TextSize = 12,
+            })
+            local bar = mk("Frame", {
+                Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = WHITE, BackgroundTransparency = 0.86, BorderSizePixel = 0,
+            }, r)
+            circ(bar)
+            local fill = mk("Frame", { Size = UDim2.new(0, 0, 1, 0), BorderSizePixel = 0 }, bar)
+            circ(fill)
+            bindAccent(fill, "BackgroundColor3")
+            local knob = mk("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(16, 16),
+                BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 2,
+            }, bar)
+            circ(knob)
+            stroke(knob, BLACK, 0.8, 1)
+            local hit = mk("TextButton", { Position = UDim2.fromOffset(0, -8), Size = UDim2.new(1, 0, 1, 16), BackgroundTransparency = 1, Text = "", ZIndex = 3 }, bar)
+            local o = {
+                Type = "Slider", Min = info.Min or 0, Max = info.Max or 100, Rounding = info.Rounding or 0,
+                Value = info.Default or info.Min or 0, Changed = {},
+            }
+            local function render()
+                val.Text = tostring(o.Value) .. (info.Suffix or "")
+                local f = (o.Value - o.Min) / math.max(o.Max - o.Min, 1e-9)
+                tw(fill, 0.1, { Size = UDim2.new(f, 0, 1, 0) })
+                tw(knob, 0.1, { Position = UDim2.new(f, 0, 0.5, 0) })
+            end
+            function o:SetValue(v)
+                v = math.clamp(round(v, self.Rounding), self.Min, self.Max)
+                if v == self.Value then render() return end
+                self.Value = v
+                render()
+                fire(self.Changed, v)
+            end
+            function o:OnChanged(f) table.insert(self.Changed, f) end
+            hit.InputBegan:Connect(function(i)
+                if i.UserInputType == MB1 or i.UserInputType == TOUCH then
+                    local function set(x)
+                        o:SetValue(o.Min + (o.Max - o.Min) * math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1))
+                    end
+                    set(i.Position.X)
+                    activeDrag = function(x) set(x) end
+                end
+            end)
+            render()
+            Options[idx] = o
+            return o
+        end
+
+        function g:AddDropdown(idx, info)
+            info = info or {}
+            order += 1
+            local r = mk("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order }, box)
+            mk("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, r)
+            lbl(r, { Size = UDim2.new(1, 0, 0, 16), Text = info.Text or idx, LayoutOrder = 1 })
+            local btn = mk("TextButton", {
+                Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = WHITE, BackgroundTransparency = 0.88, BorderSizePixel = 0, Font = FONT, TextSize = 12,
+                TextColor3 = TH.Txt, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 2, Text = "", AutoButtonColor = false,
+            }, r)
+            rnd(btn, 10)
+            hoverPill(btn, 0.88, 0.8)
+            mk("UIPadding", { PaddingLeft = UDim.new(0, 12) }, btn)
+            local chev = lbl(btn, {
+                AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(14, 14), Text = "v",
+                TextColor3 = TH.Dim, TextXAlignment = Enum.TextXAlignment.Center, TextSize = 11,
+            })
+            local list = mk("Frame", {
+                Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Color3.fromRGB(14, 14, 18),
+                BackgroundTransparency = 0.25, BorderSizePixel = 0, LayoutOrder = 3, Visible = false,
+            }, r)
+            rnd(list, 10)
+            stroke(list, WHITE, 0.9, 1)
+            mk("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }, list)
+            mk("UIPadding", { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 3), PaddingRight = UDim.new(0, 3) }, list)
+
+            local o = { Type = "Dropdown", Values = info.Values or {}, Multi = info.Multi == true, Changed = {} }
+            if o.Multi then
+                o.Value = {}
+            else
+                local d = info.Default
+                if type(d) == "string" then o.Value = d else o.Value = o.Values[d or 1] end
+            end
+            local function label()
+                if o.Multi then
+                    local sel = {}
+                    for _, v in ipairs(o.Values) do if o.Value[v] then table.insert(sel, v) end end
+                    btn.Text = #sel > 0 and table.concat(sel, ", ") or "None"
+                else
+                    btn.Text = o.Value ~= nil and tostring(o.Value) or "None"
+                end
+            end
+            local function build()
+                for _, c in ipairs(list:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+                for i, v in ipairs(o.Values) do
+                    local sel = (o.Multi and o.Value[v]) or (not o.Multi and o.Value == v)
+                    local ob = mk("TextButton", {
+                        Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = WHITE, BackgroundTransparency = sel and 0.86 or 1, BorderSizePixel = 0,
+                        Font = FONT, TextSize = 12, Text = tostring(v), TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = i,
+                        TextColor3 = sel and L.Accent or TH.Txt, AutoButtonColor = false,
+                    }, list)
+                    rnd(ob, 8)
+                    mk("UIPadding", { PaddingLeft = UDim.new(0, 10) }, ob)
+                    ob.MouseEnter:Connect(function() tw(ob, 0.12, { BackgroundTransparency = 0.82 }) end)
+                    ob.MouseLeave:Connect(function() tw(ob, 0.12, { BackgroundTransparency = sel and 0.86 or 1 }) end)
+                    ob.MouseButton1Click:Connect(function()
+                        if o.Multi then
+                            local d = {}
+                            for k, val in pairs(o.Value) do d[k] = val end
+                            d[v] = (not d[v]) or nil
+                            o:SetValue(d)
+                        else
+                            o:SetValue(v)
+                            list.Visible = false
+                            chev.Text = "v"
+                        end
+                    end)
+                end
+            end
+            function o:SetValues(vals)
+                self.Values = vals
+                build()
+                label()
+            end
+            function o:SetValue(v)
+                if self.Multi then
+                    local d = {}
+                    if type(v) == "table" then for k, val in pairs(v) do if val then d[k] = true end end end
+                    self.Value = d
+                else
+                    if type(v) == "number" then v = self.Values[v] end
+                    self.Value = v
+                end
+                build()
+                label()
+                fire(self.Changed, self.Value)
+            end
+            function o:OnChanged(f) table.insert(self.Changed, f) end
+            btn.MouseButton1Click:Connect(function()
+                list.Visible = not list.Visible
+                chev.Text = list.Visible and "^" or "v"
+            end)
+            build()
+            label()
+            Options[idx] = o
+            return o
+        end
+
+        function g:AddLabel(txt, wrap)
+            local r
+            if wrap then
+                order += 1
+                r = mk("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order }, box)
+            else
+                r = row(24)
+            end
+            local t = lbl(r, {
+                Size = UDim2.new(1, 0, 0, wrap and 0 or 24), AutomaticSize = wrap and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
+                TextWrapped = wrap == true, Text = txt, TextColor3 = wrap and TH.Dim or TH.Txt, TextSize = wrap and 12 or 13,
+            })
+            local l = {}
+            function l:SetText(s) t.Text = tostring(s) end
+            function l:AddColorPicker(i, inf) return addColorPicker(r, i, inf, 0) end
+            function l:AddKeyPicker(i, inf) return addKeyPicker(r, i, inf, 0) end
+            return l
+        end
+
+        function g:AddButton(a, b)
+            local label, fn
+            if type(a) == "table" then label, fn = a.Text, a.Func else label, fn = a, b end
+            local r = row(32)
+            local btn = mk("TextButton", {
+                Size = UDim2.new(1, 0, 1, -2), BackgroundColor3 = WHITE, BackgroundTransparency = 0.88, BorderSizePixel = 0, Font = FONT,
+                TextSize = 12, TextColor3 = TH.Txt, Text = tostring(label), AutoButtonColor = false,
+            }, r)
+            rnd(btn, 11)
+            stroke(btn, WHITE, 0.9, 1)
+            hoverPill(btn, 0.88, 0.78)
+            btn.MouseButton1Click:Connect(function() if fn then task.spawn(fn) end end)
+            return btn
+        end
+
+        function g:AddInput(idx, info)
+            info = info or {}
+            local r = row(50)
+            lbl(r, { Size = UDim2.new(1, 0, 0, 16), Text = info.Text or idx })
+            local tb = mk("TextBox", {
+                Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = WHITE, BackgroundTransparency = 0.88,
+                BorderSizePixel = 0, Font = FONT, TextSize = 12, TextColor3 = TH.Txt, Text = info.Default or "", ClearTextOnFocus = false,
+                PlaceholderText = info.Placeholder or "", PlaceholderColor3 = TH.Dim, TextXAlignment = Enum.TextXAlignment.Left,
+            }, r)
+            rnd(tb, 10)
+            mk("UIPadding", { PaddingLeft = UDim.new(0, 10) }, tb)
+            local ts = stroke(tb, WHITE, 0.92, 1)
+            tb.Focused:Connect(function() tw(ts, 0.2, { Color = L.Accent, Transparency = 0.2 }) end)
+            tb.FocusLost:Connect(function() tw(ts, 0.2, { Color = WHITE, Transparency = 0.92 }) end)
+            local o = { Type = "Input", Value = tb.Text, Changed = {} }
+            function o:SetValue(s)
+                self.Value = tostring(s)
+                tb.Text = self.Value
+                fire(self.Changed, self.Value)
+            end
+            function o:OnChanged(f) table.insert(self.Changed, f) end
+            tb.FocusLost:Connect(function()
+                o.Value = tb.Text
+                fire(o.Changed, o.Value)
+            end)
+            Options[idx] = o
+            return o
+        end
+
+        function g:AddDivider()
+            local r = row(6)
+            mk("Frame", { Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0.9, BorderSizePixel = 0 }, r)
+        end
+
+        return g
+    end
+
+    local Window = {}
+    function L:CreateWindow(info)
+        info = info or {}
+        main = mk("CanvasGroup", {
+            Size = info.Size or UDim2.fromOffset(660, 500), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+            BackgroundColor3 = TH.Glass, BackgroundTransparency = 0.2, BorderSizePixel = 0, GroupTransparency = 1,
+        }, gui)
+        glass(main, 26)
+        mainScale = mk("UIScale", { Scale = 0.9 }, main)
+        isOpen = true
+        tw(main, 0.35, { GroupTransparency = 0 })
+        tw(mainScale, 0.55, { Scale = 1 }, Enum.EasingStyle.Back)
+
+        local titleBar = mk("Frame", { Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 48), BackgroundTransparency = 1, Active = true }, main)
+        lbl(titleBar, { Position = UDim2.fromOffset(20, 10), Size = UDim2.fromOffset(120, 28), Text = info.Title or "FwSerial", Font = FONTB, TextSize = 18 })
+        local sub = lbl(titleBar, { Position = UDim2.fromOffset(112, 13), Size = UDim2.fromOffset(160, 22), Text = info.Subtitle or "", Font = FONT, TextSize = 14 })
+        bindAccent(sub, "TextColor3")
+        titleBar.InputBegan:Connect(function(i)
+            if i.UserInputType == MB1 or i.UserInputType == TOUCH then
+                local sm, sp = i.Position, main.Position
+                activeDrag = function(x, y)
+                    main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + (x - sm.X), sp.Y.Scale, sp.Y.Offset + (y - sm.Y))
+                end
+            end
+        end)
+        local close = mk("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(26, 26), BackgroundColor3 = TH.Bad,
+            BackgroundTransparency = 0.25, BorderSizePixel = 0, Text = "X", TextColor3 = WHITE, Font = FONTB, TextSize = 12, AutoButtonColor = false,
+        }, titleBar)
+        circ(close)
+        hoverPill(close, 0.25, 0.05)
+        close.MouseButton1Click:Connect(function() L:Toggle() end)
+
+        local tabBar = mk("Frame", {
+            Position = UDim2.fromOffset(16, 52), Size = UDim2.new(1, -32, 0, 38), BackgroundColor3 = WHITE, BackgroundTransparency = 0.91, BorderSizePixel = 0,
+        }, main)
+        circ(tabBar)
+        local indicator = mk("Frame", { Size = UDim2.new(0, 0, 1, -6), Position = UDim2.fromOffset(3, 3), BorderSizePixel = 0, BackgroundTransparency = 0.05 }, tabBar)
+        circ(indicator)
+        bindAccent(indicator, "BackgroundColor3")
+        local content = mk("Frame", { Position = UDim2.fromOffset(16, 100), Size = UDim2.new(1, -32, 1, -116), BackgroundTransparency = 1 }, main)
+
+        local tabsList = {}
+        local function layoutTabs()
+            local n = #tabsList
+            for i, t in ipairs(tabsList) do
+                t._btn.Position = UDim2.new((i - 1) / n, 3, 0, 3)
+                t._btn.Size = UDim2.new(1 / n, -6, 1, -6)
+            end
+        end
+        local function selectTab(t)
+            for _, x in ipairs(tabsList) do
+                local on = x == t
+                if on and not x._page.Visible then
+                    x._page.Visible = true
+                    x._page.Position = UDim2.fromOffset(0, 18)
+                    tw(x._page, 0.45, { Position = UDim2.fromOffset(0, 0) }, Enum.EasingStyle.Back)
+                elseif not on then
+                    x._page.Visible = false
+                end
+                tw(x._btn, 0.2, { TextColor3 = on and WHITE or TH.Dim })
+            end
+            tw(indicator, 0.35, { Position = t._btn.Position, Size = t._btn.Size }, Enum.EasingStyle.Back)
+            if popup then popup:Destroy() popup, popupOwner = nil, nil end
+        end
+
+        function Window:AddTab(name)
+            local tab = {}
+            local b = mk("TextButton", {
+                BackgroundTransparency = 1, BorderSizePixel = 0, Font = FONTB, TextSize = 13, TextColor3 = TH.Dim, Text = name,
+                AutoButtonColor = false, ZIndex = 2,
+            }, tabBar)
+            local page = mk("ScrollingFrame", {
+                Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
+                ScrollBarImageColor3 = WHITE, ScrollBarImageTransparency = 0.7, CanvasSize = UDim2.new(),
+                AutomaticCanvasSize = Enum.AutomaticSize.Y, Visible = false,
+            }, content)
+            local cols = mk("Frame", { Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, page)
+            mk("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 10) }, cols)
+            local function column()
+                local c = mk("Frame", { Size = UDim2.new(0.5, -5, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, cols)
+                mk("UIListLayout", { Padding = UDim.new(0, 10) }, c)
+                return c
+            end
+            local left, right = column(), column()
+            tab._btn, tab._page = b, page
+            function tab:AddLeftGroupbox(n) return makeGroupbox(left, n) end
+            function tab:AddRightGroupbox(n) return makeGroupbox(right, n) end
+            b.MouseButton1Click:Connect(function() selectTab(tab) end)
+            table.insert(tabsList, tab)
+            layoutTabs()
+            if #tabsList == 1 then
+                task.defer(function()
+                    indicator.Position, indicator.Size = tab._btn.Position, tab._btn.Size
+                    selectTab(tab)
+                end)
+            end
+            return tab
+        end
+
+        local openBtn = mk("TextButton", {
+            Size = UDim2.fromOffset(42, 42), Position = UDim2.new(0, 10, 0.5, -21), BackgroundColor3 = TH.Glass, BackgroundTransparency = 0.15,
+            BorderSizePixel = 0, Text = "FW", TextColor3 = WHITE, Font = FONTB, TextSize = 14, ZIndex = 20, AutoButtonColor = false,
+        }, gui)
+        glass(openBtn, 21)
+        local obs = mk("UIScale", {}, openBtn)
+        local moved = false
+        openBtn.InputBegan:Connect(function(i)
+            if i.UserInputType == MB1 or i.UserInputType == TOUCH then
+                local sm, sa = i.Position, openBtn.AbsolutePosition
+                moved = false
+                activeDrag = function(x, y)
+                    local dx, dy = x - sm.X, y - sm.Y
+                    if math.abs(dx) + math.abs(dy) > 6 then moved = true end
+                    if moved then
+                        local scr = gui.AbsoluteSize
+                        openBtn.Position = UDim2.fromOffset(math.clamp(sa.X + dx, 0, math.max(scr.X - 42, 0)), math.clamp(sa.Y + dy, 0, math.max(scr.Y - 42, 0)))
+                    end
+                end
+            end
+        end)
+        openBtn.MouseEnter:Connect(function() tw(obs, 0.15, { Scale = 1.08 }) end)
+        openBtn.MouseLeave:Connect(function() tw(obs, 0.15, { Scale = 1 }) end)
+        openBtn.MouseButton1Click:Connect(function()
+            if moved then moved = false return end
+            L:Toggle()
+        end)
+        function L:SetOpenButton(v) openBtn.Visible = v and true or false end
+        function L:ResetPosition()
+            main.Position = UDim2.fromScale(0.5, 0.5)
+            openBtn.Position = UDim2.new(0, 10, 0.5, -21)
+        end
+
+        return Window
+    end
+
+    return L
+end)()
+
+local Options, Toggles = Library.Options, Library.Toggles
+local Camera = workspace.CurrentCamera
+local TextService = game:GetService("TextService")
+local IS_MM2 = game.PlaceId == 142823291 or game.GameId == 66654135
+
+local function getChar(p) return p and p.Character end
+local function getHRP(p) local c = getChar(p) return c and c:FindFirstChild("HumanoidRootPart") end
+local function getHum(p) local c = getChar(p) return c and c:FindFirstChildOfClass("Humanoid") end
+local function isAlive(p) local h = getHum(p) return h ~= nil and h.Health > 0 end
+
+-- forward declarations (used by menu buttons before they are defined)
+local rescan, panic, killAll
+local killToken = 0
+local bagInfoLabel
+
+local Window = Library:CreateWindow({ Title = "FwSerial", Subtitle = "Candy", Size = UDim2.fromOffset(660, 500) })
+local Tabs = {
+    Grind = Window:AddTab("Grind"),
+    Visuals = Window:AddTab("Visuals"),
+    Settings = Window:AddTab("Settings"),
+}
+
+do
+    local g = Tabs.Grind:AddLeftGroupbox("Auto grind")
+    g:AddToggle("Grind", { Text = "Auto grind candy", Default = false })
+        :AddKeyPicker("GrindKey", { Default = "None", Text = "Grind key" })
+    g:AddDropdown("GrindMode", { Values = { "Fly (noclip)", "Teleport" }, Default = 1, Text = "Mode" })
+    g:AddToggle("SlowFly", { Text = "SLOW FLY only (no teleport at all)", Default = false })
+        :AddKeyPicker("SlowFlyKey", { Default = "None", Text = "Slow fly key" })
+    g:AddSlider("SlowSpeed", { Text = "Slow fly speed (studs/s)", Default = 20, Min = 10, Max = 120, Rounding = 0 })
+    g:AddSlider("FlySpeed", { Text = "Fly speed (studs/s)", Default = 20, Min = 20, Max = 800, Rounding = 0 })
+    g:AddSlider("FlyDelay", { Text = "Fly delay (ms, 0 = none)", Default = 0, Min = 0, Max = 3000, Rounding = 0 })
+    g:AddSlider("TPDelay", { Text = "Teleport delay (ms)", Default = 1000, Min = 0, Max = 5000, Rounding = 0 })
+    g:AddSlider("CandyDelay", { Text = "Extra delay between candies (ms)", Default = 0, Min = 0, Max = 5000, Rounding = 0 })
+    g:AddToggle("FurthestFirst", { Text = "Go to FURTHEST candy first", Default = false })
+    g:AddToggle("FleeFurthest", { Text = "Murderer near 1st / 2nd: go furthest", Default = true })
+    g:AddToggle("TouchAssist", { Text = "Touch signal on nearby candy", Default = true })
+    g:AddToggle("PauseMoving", { Text = "Pause while I move (WASD)", Default = true })
+    g:AddToggle("TakenDetect", { Text = "Candy-taken detector (skip collected)", Default = true })
+    g:AddToggle("TakenNotify", { Text = "Notify when a candy is taken", Default = false })
+    g:AddToggle("RandomUnstick", { Text = "Stuck? go to a random candy", Default = true })
+    g:AddSlider("StuckTime", { Text = "Stuck timeout (s)", Default = 5, Min = 2, Max = 20, Rounding = 0 })
+    g:AddLabel("Fly goes through walls AND floors to the best candy. Teleport hops onto it and waits your delay. Neither one ever returns you to where you started.", true)
+
+    local sf = Tabs.Grind:AddLeftGroupbox("Safety")
+    sf:AddToggle("StopWhenFull", { Text = "Full bag: turn off grind + ESP (empty: ESP on)", Default = true })
+    bagInfoLabel = sf:AddLabel("Bag: reading...")
+    sf:AddSlider("BagMax", { Text = "Bag limit (coins)", Default = 50, Min = 10, Max = 100, Rounding = 0 })
+    sf:AddToggle("OthersNotify", { Text = "Notify when someone else takes candy", Default = true })
+    sf:AddToggle("SkySafety", { Text = "Sky safety (ground me + stop grind)", Default = true })
+    sf:AddSlider("SkyTime", { Text = "Max seconds in the sky", Default = 7, Min = 3, Max = 20, Rounding = 0 })
+    sf:AddSlider("SkyHeight", { Text = "Counts as sky above (studs)", Default = 15, Min = 6, Max = 60, Rounding = 0 })
+    sf:AddLabel("If you stay higher than that for too long, you are put back on the ground and auto grind turns off so you do not crash.", true)
+
+    local w = Tabs.Grind:AddLeftGroupbox("Walk to candy")
+    w:AddToggle("CandyWalk", { Text = "Walk to candy (pathfinding)", Default = false })
+        :AddKeyPicker("CandyWalkKey", { Default = "None", Text = "Walk key" })
+    w:AddLabel("Walks to the best candy: clear line first, never next to the murderer.", true)
+
+    local u = Tabs.Grind:AddLeftGroupbox("Under map (testing)")
+    u:AddToggle("UnderMap", { Text = "Avatar under map (testing)", Default = false })
+        :AddKeyPicker("UnderMapKey", { Default = "None", Text = "Under map key" })
+    u:AddSlider("UnderDepth", { Text = "Depth (studs)", Default = 8, Min = 2, Max = 60, Rounding = 0 })
+    u:AddLabel("Your hitbox (root part) stays in the map, only your avatar body is moved down. Camera follows the hitbox. Experimental.", true)
+
+    local a = Tabs.Grind:AddRightGroupbox("Touch aura (no movement)")
+    a:AddToggle("TouchAura", { Text = "Touch aura", Default = false })
+        :AddKeyPicker("TouchAuraKey", { Default = "None", Text = "Touch aura key" })
+    a:AddSlider("AuraRadius", { Text = "Radius (studs)", Default = 20, Min = 5, Max = 150, Rounding = 0 })
+    a:AddSlider("AuraRate", { Text = "Touches / second", Default = 15, Min = 1, Max = 60, Rounding = 0 })
+    a:AddToggle("AuraShow", { Text = "Show aura ring", Default = true })
+    a:AddLabel("Ring color"):AddColorPicker("AuraColor", { Default = Color3.fromRGB(10, 132, 255) })
+    a:AddLabel("Only fires the touch signal, it never moves you.", true)
+
+    local k = Tabs.Grind:AddRightGroupbox("Murderer: kill all")
+    k:AddToggle("KillAll", { Text = "Kill all at max candy (if murderer)", Default = true })
+        :AddKeyPicker("KillAllKey", { Default = "None", Text = "Kill all key" })
+    k:AddSlider("KillTimeout", { Text = "Max seconds per player", Default = 2, Min = 1, Max = 6, Rounding = 0 })
+    k:AddButton("Kill all now", function() task.spawn(function() killAll() end) end)
+    k:AddButton("STOP kill all", function() killToken += 1 Library:Notify("Kill all stopped.", 2, "warn") end)
+    k:AddLabel("Turn the toggle off to disable the automatic kill all. Only runs when you are the murderer and your candy bag is full.", true)
+
+    local gn = Tabs.Grind:AddRightGroupbox("Gun")
+    gn:AddToggle("AutoGun", { Text = "Auto pick up dropped gun", Default = true })
+    gn:AddToggle("AutoGunFly", { Text = "Fly to the gun if touch fails", Default = true })
+    gn:AddLabel("Not used while you are the murderer. Tries a touch signal first, then flies there at your fly speed.", true)
+
+    local m = Tabs.Grind:AddRightGroupbox("Murderer detector")
+    m:AddToggle("MurdDetect", { Text = "Murderer detector", Default = true })
+    m:AddSlider("MurdRange", { Text = "Danger radius (studs)", Default = 35, Min = 10, Max = 120, Rounding = 0 })
+    m:AddToggle("MurdNotify", { Text = "Notify when murderer is near", Default = true })
+    m:AddToggle("AvoidDanger", { Text = "Skip candy next to the murderer", Default = true })
+    m:AddToggle("RoleChams", { Text = "Murderer / sheriff chams", Default = false })
+    m:AddToggle("RoleTags", { Text = "Murderer / sheriff tags", Default = true })
+
+    local s = Tabs.Grind:AddRightGroupbox("Wall sensor")
+    s:AddToggle("WallSensor", { Text = "Prefer candy with a clear line", Default = true })
+    s:AddToggle("SensorGlass", { Text = "See through glass / non-collide", Default = true })
+    s:AddInput("ExtraNames", { Text = "Extra item names (comma separated)", Placeholder = "e.g. Pumpkin, Candy_Server" })
+    s:AddButton("Rescan items", function() Library:Notify("Tracking " .. rescan() .. " candy parts.", 3) end)
+end
+
+do
+    local e = Tabs.Visuals:AddLeftGroupbox("Candy ESP")
+    e:AddToggle("CandyESP", { Text = "Candy ESP", Default = true })
+        :AddKeyPicker("CandyESPKey", { Default = "None", Text = "ESP key" })
+    e:AddToggle("OnlyTwo", { Text = "While grinding: show only the 2 target candies", Default = true })
+    e:AddToggle("CandyNames", { Text = "Distance labels on every candy", Default = true })
+    e:AddToggle("CandyTracer", { Text = "Glow tracer to target candy", Default = true })
+    e:AddToggle("CandyPulse", { Text = "Pulse rings", Default = true })
+    e:AddToggle("CandyArrow", { Text = "Off-screen target pointer", Default = true })
+    e:AddToggle("NearestHL", { Text = "Highlight nearest / 2nd (walls)", Default = true })
+    e:AddSlider("CandyMax", { Text = "Max range (studs)", Default = 500, Min = 50, Max = 2000, Rounding = 0 })
+    e:AddSlider("CandyGlow", { Text = "Marker glow (%)", Default = 100, Min = 0, Max = 200, Rounding = 0 })
+
+    local h = Tabs.Visuals:AddLeftGroupbox("Overlay")
+    h:AddToggle("StatusHUD", { Text = "Status pill", Default = true })
+
+    local c = Tabs.Visuals:AddRightGroupbox("Colors")
+    c:AddLabel("Normal candy"):AddColorPicker("ColNormal", { Default = Color3.fromRGB(255, 255, 255) })
+    c:AddLabel("Nearest candy"):AddColorPicker("ColNearest", { Default = Color3.fromRGB(255, 214, 10) })
+    c:AddLabel("2nd nearest candy"):AddColorPicker("ColSecond", { Default = Color3.fromRGB(100, 210, 255) })
+    c:AddLabel("Murderer near candy"):AddColorPicker("ColDanger", { Default = Color3.fromRGB(255, 69, 58) })
+    c:AddLabel("Behind a wall"):AddColorPicker("ColBlocked", { Default = Color3.fromRGB(142, 142, 160) })
+    c:AddLabel("Murderer tag"):AddColorPicker("ColMurd", { Default = Color3.fromRGB(255, 69, 58) })
+    c:AddLabel("Sheriff tag"):AddColorPicker("ColSheriff", { Default = Color3.fromRGB(10, 132, 255) })
+end
+
+local MenuGroup = Tabs.Settings:AddLeftGroupbox("Menu")
+MenuGroup:AddLabel("Menu key (show / hide)"):AddKeyPicker("MenuKeybind", { Default = "End", Text = "Menu key" })
+MenuGroup:AddLabel("Panic key"):AddKeyPicker("PanicKey", { Default = "None", Text = "Panic key" })
+
+do
+    local st = Tabs.Settings:AddRightGroupbox("Glass style")
+    st:AddLabel("Accent color"):AddColorPicker("AccentColor", { Default = Color3.fromRGB(10, 132, 255) })
+    st:AddToggle("MenuBlur", { Text = "Blur the game behind the menu", Default = true })
+    st:AddButton("Remove blur", function() Toggles.MenuBlur:SetValue(false) Library:SetBlur(false) end)
+    st:AddSlider("MenuScale", { Text = "Menu scale (%)", Default = 100, Min = 70, Max = 130, Rounding = 0 })
+    st:AddSlider("MenuOpacity", { Text = "Menu transparency (%)", Default = 0, Min = 0, Max = 60, Rounding = 0 })
+    st:AddToggle("OpenButton", { Text = "Floating open button", Default = true })
+    st:AddButton("Reset menu position", function() Library:ResetPosition() end)
+    Options.AccentColor:OnChanged(function() Library:SetAccent(Options.AccentColor.Value) end)
+    Toggles.MenuBlur:OnChanged(function() Library:SetBlur(Toggles.MenuBlur.Value) end)
+    Options.MenuScale:OnChanged(function() Library:SetScale(Options.MenuScale.Value / 100) end)
+    Options.MenuOpacity:OnChanged(function() Library:SetOpacity(Options.MenuOpacity.Value / 100) end)
+    Toggles.OpenButton:OnChanged(function() Library:SetOpenButton(Toggles.OpenButton.Value) end)
+    Library:SetBlur(true)
+end
+
+local connections, actionBinds = {}, {}
+local toggleBinds = {
+    CandyESPKey = "CandyESP", CandyWalkKey = "CandyWalk", GrindKey = "Grind", TouchAuraKey = "TouchAura",
+    KillAllKey = "KillAll", UnderMapKey = "UnderMap", SlowFlyKey = "SlowFly",
+}
+
+local function chatOpen()
+    if UIS:GetFocusedTextBox() ~= nil then return true end
+    local ok, f = pcall(function() return game:GetService("TextChatService").ChatInputBarConfiguration.IsFocused end)
+    return ok and f == true
+end
+local function blocked() return Library:IsCapturing() or chatOpen() or Library.Toggled == true end
+local function inputName(i)
+    local t = i.UserInputType
+    if t == Enum.UserInputType.Keyboard then return i.KeyCode.Name end
+    if t == Enum.UserInputType.MouseButton1 then return "MB1" end
+    if t == Enum.UserInputType.MouseButton2 then return "MB2" end
+    if t == Enum.UserInputType.MouseButton3 then return "MB3" end
+end
+table.insert(connections, UIS.InputBegan:Connect(function(input, processed)
+    if Library.Unloaded then return end
+    local name = inputName(input)
+    if not name or processed or blocked() then return end
+    for keyOpt, tg in pairs(toggleBinds) do
+        local k, t = Options[keyOpt], Toggles[tg]
+        if k and t and k.Value == name then t:SetValue(not t.Value) end
+    end
+    for keyOpt, fn in pairs(actionBinds) do
+        local k = Options[keyOpt]
+        if k and k.Value == name then task.spawn(fn) end
+    end
+end))
+
+local roles = {}
+local function holdsTool(p, name)
+    local char = getChar(p)
+    local t = char and char:FindFirstChild(name)
+    if t and t:IsA("Tool") then return true end
+    local bp = p:FindFirstChildOfClass("Backpack")
+    t = bp and bp:FindFirstChild(name)
+    return t ~= nil and t:IsA("Tool")
+end
+local function refreshRoles()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if isAlive(p) then
+            roles[p] = holdsTool(p, "Knife") and "Murderer" or (holdsTool(p, "Gun") and "Sheriff" or "Innocent")
+        else
+            roles[p] = nil
+        end
+    end
+end
+
+local coins = {}
+local stats = { collected = 0, startAt = os.clock() }
+local hooked = setmetatable({}, { __mode = "k" })
+local seenTaken = setmetatable({}, { __mode = "k" })
+local ghostUntil = setmetatable({}, { __mode = "k" })
+local lastProgress = os.clock()
+local lastBagUp, bagGuessUntil, roundBase = 0, 0, 0
+
+local function extraNames()
+    local list = {}
+    for n in tostring(Options.ExtraNames.Value or ""):gmatch("[^,]+") do
+        local t = n:match("^%s*(.-)%s*$"):lower()
+        if t ~= "" then table.insert(list, t) end
+    end
+    return list
+end
+local extraCache = extraNames()
+
+local function resolveCoin(inst)
+    if not (inst:IsA("BasePart") or inst:IsA("Model")) then return nil end
+    local n = inst.Name:lower()
+    local ok = false
+    for _, e in ipairs(extraCache) do if n == e then ok = true end end
+    if not ok then
+        if n:find("visual") then return nil end
+        if not (n:find("coin") or n:find("candy")) then return nil end
+        ok = n:find("server") ~= nil or (inst.Parent ~= nil and inst.Parent.Name == "CoinContainer")
+    end
+    if not ok or inst:FindFirstAncestorOfClass("Backpack") then return nil end
+    local m = inst:IsA("Model") and inst or inst:FindFirstAncestorOfClass("Model")
+    if m and Players:GetPlayerFromCharacter(m) then return nil end
+    if inst:IsA("BasePart") then return inst end
+    return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local function trackCoin(inst)
+    local part = resolveCoin(inst)
+    if not part or coins[part] then return end
+    coins[part] = true
+    if hooked[part] then return end
+    hooked[part] = true
+    part.AncestryChanged:Connect(function(_, parent)
+        if parent then return end
+        coins[part] = nil
+        lastProgress = os.clock()
+        if seenTaken[part] then return end -- already counted by the taken detector
+        local hrp = getHRP(LP)
+        if hrp and (part.Position - hrp.Position).Magnitude <= 40 then stats.collected += 1 else stats.others = (stats.others or 0) + 1 end
+    end)
+end
+
+rescan = function()
+    extraCache = extraNames()
+    table.clear(coins)
+    for _, d in ipairs(workspace:GetDescendants()) do trackCoin(d) end
+    local n = 0
+    for _ in pairs(coins) do n += 1 end
+    return n
+end
+rescan()
+table.insert(connections, workspace.DescendantAdded:Connect(trackCoin))
+Options.ExtraNames:OnChanged(function() rescan() end)
+if not IS_MM2 then Library:Notify("This is not Murder Mystery 2, candy detection may find nothing.", 6, "warn") end
+
+-- ===== candy-taken detector =====
+-- A candy counts as taken when: it is gone, untouchable, flagged Collected, or its visual child got hidden.
+local function visualHidden(part)
+    local found, hidden = false, true
+    for _, c in ipairs(part:GetChildren()) do
+        if c:IsA("BasePart") and c.Name:lower():find("visual") then
+            found = true
+            if c.Transparency < 0.9 then hidden = false end
+        end
+    end
+    return found and hidden
+end
+
+local function collectedNow(part)
+    if part:GetAttribute("Collected") then return true end
+    return visualHidden(part)
+end
+
+local function gone(part)
+    if not part:IsDescendantOf(workspace) then return true end
+    if part.CanTouch == false then return true end
+    if part:GetAttribute("Collected") then return true end
+    if Toggles.TakenDetect.Value and visualHidden(part) then return true end
+    return false
+end
+
+local function isTaken(part)
+    if part.CanTouch == false then return true end
+    if not Toggles.TakenDetect.Value then return false end
+    if (ghostUntil[part] or 0) > os.clock() then return true end
+    return collectedNow(part)
+end
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function clearLine(part, hrp)
+    local ignore = { Camera }
+    if LP.Character then table.insert(ignore, LP.Character) end
+    local origin = hrp.Position + Vector3.new(0, 1.5, 0)
+    for _ = 1, 5 do
+        rayParams.FilterDescendantsInstances = ignore
+        local res = workspace:Raycast(origin, part.Position - origin, rayParams)
+        if not res then return true end
+        local inst = res.Instance
+        local mdl = inst:FindFirstAncestorOfClass("Model")
+        if inst == part or coins[inst] or (mdl and Players:GetPlayerFromCharacter(mdl))
+            or (Toggles.SensorGlass.Value and (inst.Transparency >= 0.9 or not inst.CanCollide)) then
+            table.insert(ignore, inst)
+        else
+            return false
+        end
+    end
+    return false
+end
+
+local cand = { list = {}, order = {}, nearest = nil, second = nil, flee = false, dangerN = false, dangerS = false }
+local lastWarn = 0
+
+local function scanCandy()
+    local hrp = getHRP(LP)
+    if not hrp or not isAlive(LP) then
+        cand.list, cand.order, cand.nearest, cand.second, cand.flee = {}, {}, nil, nil, false
+        return
+    end
+    local list = {}
+    local now = os.clock()
+    for part in pairs(coins) do
+        if part.Parent then
+            -- progress tracking: a candy that just got hidden near us = collected
+            if Toggles.TakenDetect.Value then
+                if collectedNow(part) then
+                    if not seenTaken[part] then
+                        seenTaken[part] = true
+                        lastProgress = now
+                        if (part.Position - hrp.Position).Magnitude <= 40 then
+                            stats.collected += 1
+                            if Toggles.TakenNotify.Value then Library:Notify("Candy taken (" .. stats.collected .. ")", 1.5) end
+                        else
+                            stats.others = (stats.others or 0) + 1
+                            if Toggles.OthersNotify.Value then Library:Notify("Someone else took a candy", 1.5, "warn") end
+                        end
+                    end
+                else
+                    seenTaken[part] = nil
+                end
+            end
+            if not isTaken(part) then
+                list[#list + 1] = { part = part, dist = (part.Position - hrp.Position).Magnitude }
+            end
+        end
+    end
+    table.sort(list, function(a, b) return a.dist < b.dist end)
+
+    local murds = {}
+    for p, r in pairs(roles) do
+        if r == "Murderer" and p ~= LP then
+            local h = getHRP(p)
+            if h then murds[#murds + 1] = h.Position end
+        end
+    end
+    local detect = Toggles.MurdDetect.Value and roles[LP] ~= "Murderer"
+    local range = Options.MurdRange.Value
+    local function dangerous(pos)
+        if not detect then return false end
+        for _, m in ipairs(murds) do
+            if (m - pos).Magnitude <= range then return true end
+        end
+        return false
+    end
+
+    local far = Toggles.FurthestFirst.Value
+    local sensor = Toggles.WallSensor.Value
+    for i, e in ipairs(list) do
+        e.danger = dangerous(e.part.Position)
+        if i <= 10 or (far and i > #list - 10) then e.clear = (not sensor) or clearLine(e.part, hrp) end
+    end
+    local function isClear(e)
+        if not sensor then return true end
+        return e.clear == true
+    end
+
+    local nearest, second
+    for _, e in ipairs(list) do
+        if isClear(e) then
+            if not nearest then nearest = e elseif not second then second = e break end
+        end
+    end
+    if not nearest then nearest, second = list[1], list[2] end
+    if nearest and second == nearest then second = nil end
+
+    local dN = nearest ~= nil and nearest.danger == true
+    local dS = second ~= nil and second.danger == true
+    local flee = Toggles.FleeFurthest.Value and detect and (dN or dS)
+
+    local order = {}
+    if flee then
+        for i = #list, 1, -1 do if not list[i].danger then order[#order + 1] = list[i] end end
+        for i = #list, 1, -1 do if list[i].danger then order[#order + 1] = list[i] end end
+    else
+        local avoid = Toggles.AvoidDanger.Value
+        local buckets = { {}, {}, {}, {} }
+        local s, f, step = 1, #list, 1
+        if far then s, f, step = #list, 1, -1 end
+        for i = s, f, step do
+            local e = list[i]
+            local rank = ((avoid and e.danger) and 2 or 0) + (isClear(e) and 0 or 1)
+            table.insert(buckets[rank + 1], e)
+        end
+        for _, b in ipairs(buckets) do
+            for _, e in ipairs(b) do order[#order + 1] = e end
+        end
+    end
+
+    cand.list, cand.order, cand.nearest, cand.second = list, order, nearest, second
+    cand.flee, cand.dangerN, cand.dangerS = flee, dN, dS
+
+    if (dN or dS) and Toggles.MurdNotify.Value and os.clock() - lastWarn > 4 then
+        lastWarn = os.clock()
+        Library:Notify(flee and "Murderer near your candy - heading to the furthest one" or (dN and "Murderer is near the NEAREST candy!" or "Murderer is near the 2nd nearest candy!"), 3, "bad")
+    end
+end
+
+local overlay = mk("ScreenGui", {
+    Name = "FwSerialOverlay", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 98, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+})
+pcall(function() if syn and syn.protect_gui then syn.protect_gui(overlay) end end)
+overlay.Parent = GuiParent
+
+local items, MAXITEMS = {}, 40
+local function getItem(i)
+    local it = items[i]
+    if it then return it end
+    local glow = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), BorderSizePixel = 0, Visible = false, BackgroundTransparency = 0.8 }, overlay)
+    circ(glow)
+    local dot = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), BorderSizePixel = 0, Visible = false, Rotation = 45 }, overlay)
+    rnd(dot, 3)
+    stroke(dot, WHITE, 0.35, 1)
+    local pill = mk("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0), AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 16), BackgroundColor3 = BLACK,
+        BackgroundTransparency = 0.4, BorderSizePixel = 0, Font = FONTB, TextSize = 11, Visible = false,
+    }, overlay)
+    circ(pill)
+    mk("UIPadding", { PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7) }, pill)
+    local ps = stroke(pill, WHITE, 0.6, 1)
+    it = { glow = glow, dot = dot, pill = pill, ps = ps }
+    items[i] = it
+    return it
+end
+
+local function ringFrame()
+    local f = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false }, overlay)
+    circ(f)
+    local s = stroke(f, WHITE, 0.5, 2)
+    return f, s
+end
+local pulseN, pulseNS = ringFrame()
+local pulseS, pulseSS = ringFrame()
+
+local function lineFrame(endT)
+    local f = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), BorderSizePixel = 0, Visible = false, BackgroundColor3 = WHITE }, overlay)
+    mk("UIGradient", { Transparency = NumberSequence.new({ NSK(0, 1), NSK(1, endT) }) }, f)
+    return f
+end
+local tracerCore, tracerGlow = lineFrame(0.1), lineFrame(0.8)
+
+local arrowDot = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(16, 16), BorderSizePixel = 0, Rotation = 45, Visible = false }, overlay)
+rnd(arrowDot, 4)
+stroke(arrowDot, WHITE, 0.3, 1.5)
+local arrowPill = mk("TextLabel", {
+    AnchorPoint = Vector2.new(0.5, 0.5), AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 18), BackgroundColor3 = BLACK,
+    BackgroundTransparency = 0.35, BorderSizePixel = 0, Font = FONTB, TextSize = 11, Visible = false,
+}, overlay)
+circ(arrowPill)
+mk("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, arrowPill)
+local arrowPS = stroke(arrowPill, WHITE, 0.6, 1)
+
+local roleTags = {}
+for i = 1, 4 do
+    local pill = mk("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 1), AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), BackgroundColor3 = BLACK,
+        BackgroundTransparency = 0.35, BorderSizePixel = 0, Font = FONTB, TextSize = 12, Visible = false,
+    }, overlay)
+    circ(pill)
+    mk("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, pill)
+    roleTags[i] = { pill = pill, st = stroke(pill, WHITE, 0.4, 1.2) }
+end
+
+local hudFrame = mk("Frame", {
+    AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(200, 34), BackgroundColor3 = TH.Glass,
+    BackgroundTransparency = 0.2, BorderSizePixel = 0, Visible = false,
+}, overlay)
+glass(hudFrame, 17)
+local hudDot = mk("Frame", { Position = UDim2.fromOffset(14, 13), Size = UDim2.fromOffset(8, 8), BorderSizePixel = 0, BackgroundColor3 = TH.Dim }, hudFrame)
+circ(hudDot)
+local hudText = mk("TextLabel", {
+    Position = UDim2.fromOffset(30, 0), Size = UDim2.new(1, -40, 1, 0), BackgroundTransparency = 1, Font = FONT, TextSize = 13,
+    TextColor3 = TH.Txt, TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+}, hudFrame)
+
+local hlN = mk("Highlight", { DepthMode = Enum.HighlightDepthMode.AlwaysOnTop, FillTransparency = 0.45, OutlineTransparency = 0 }, GuiParent)
+local hlS = mk("Highlight", { DepthMode = Enum.HighlightDepthMode.AlwaysOnTop, FillTransparency = 0.55, OutlineTransparency = 0.2 }, GuiParent)
+local roleHL = {}
+
+local function entryColor(e, isN, isS)
+    if e.danger and (isN or isS) then
+        local f = (math.sin(os.clock() * 8) + 1) / 2
+        return Options.ColDanger.Value:Lerp(WHITE, f * 0.45)
+    end
+    if isN then return Options.ColNearest.Value end
+    if isS then return Options.ColSecond.Value end
+    if Toggles.WallSensor.Value and e.clear == false then return Options.ColBlocked.Value end
+    return Options.ColNormal.Value
+end
+
+local function setLine(core, glowLine, a, b, c, thick)
+    local d = b - a
+    local mid = (a + b) / 2
+    local rot = math.deg(math.atan2(d.Y, d.X))
+    for i, f in ipairs({ glowLine, core }) do
+        f.Position = UDim2.fromOffset(mid.X, mid.Y)
+        f.Size = UDim2.fromOffset(math.max(d.Magnitude, 1), i == 1 and thick * 4 or thick)
+        f.Rotation = rot
+        f.BackgroundColor3 = c
+        f.Visible = true
+    end
+end
+
+local function drawCandy()
+    for i = 1, #items do
+        local it = items[i]
+        it.glow.Visible, it.dot.Visible, it.pill.Visible = false, false, false
+    end
+    tracerCore.Visible, tracerGlow.Visible = false, false
+    pulseN.Visible, pulseS.Visible, arrowDot.Visible, arrowPill.Visible = false, false, false, false
+
+    local hrp = getHRP(LP)
+    if not Toggles.CandyESP.Value or not hrp then
+        hlN.Adornee, hlS.Adornee = nil, nil
+        return
+    end
+
+    local t = os.clock()
+    local vp = Camera.ViewportSize
+    local maxR = Options.CandyMax.Value
+    local glowK = Options.CandyGlow.Value / 100
+    local target = cand.order[1]
+    local used = 0
+
+    -- while auto grinding, only draw the 2 candies we are going for
+    local onlyTwo = Toggles.OnlyTwo.Value and Toggles.Grind.Value
+    local drawList = cand.list
+    if onlyTwo then
+        local a, b = cand.nearest, cand.second
+        if cand.flee or Toggles.FurthestFirst.Value then a, b = cand.order[1], cand.order[2] end
+        drawList = {}
+        if a then drawList[#drawList + 1] = a end
+        if b and b ~= a then drawList[#drawList + 1] = b end
+    end
+
+    for _, e in ipairs(drawList) do
+        if (not onlyTwo and e.dist > maxR) or used >= MAXITEMS then break end
+        local v, on = Camera:WorldToViewportPoint(e.part.Position)
+        if on then
+            used += 1
+            local isN, isS, isT = e == cand.nearest, e == cand.second, e == target
+            local c = entryColor(e, isN, isS)
+            local it = getItem(used)
+            local size = (isN or isT) and 14 or (isS and 11 or 7)
+            local faded = Toggles.WallSensor.Value and e.clear == false and not isN and not isS and not isT
+            it.dot.Size = UDim2.fromOffset(size, size)
+            it.dot.Position = UDim2.fromOffset(v.X, v.Y)
+            it.dot.BackgroundColor3 = c
+            it.dot.BackgroundTransparency = faded and 0.55 or 0
+            it.dot.Visible = true
+            local gs = size * 2.6 * (1 + 0.12 * math.sin(t * 3 + used))
+            it.glow.Size = UDim2.fromOffset(gs, gs)
+            it.glow.Position = UDim2.fromOffset(v.X, v.Y)
+            it.glow.BackgroundColor3 = c
+            it.glow.BackgroundTransparency = math.clamp(1 - (faded and 0.12 or 0.28) * glowK, 0.35, 1)
+            it.glow.Visible = glowK > 0
+            local special = isN or isS or isT
+            if special or Toggles.CandyNames.Value then
+                local tag = (isT and cand.flee and "FAR  ") or (isT and "TARGET  ") or (isN and "NEAREST  ") or (isS and "2ND  ") or ""
+                it.pill.Text = tag .. math.floor(e.dist) .. "m" .. ((e.danger and special) and "  !" or "")
+                it.pill.TextColor3 = c
+                it.ps.Color = c
+                it.pill.Position = UDim2.fromOffset(v.X, v.Y + size + 4)
+                it.pill.BackgroundTransparency = faded and 0.7 or 0.4
+                it.pill.Visible = true
+            end
+            if Toggles.CandyPulse.Value and (isN or isS) then
+                local ph = (t * (isN and 1.1 or 0.8) + (isS and 0.5 or 0)) % 1
+                local f, s = isN and pulseN or pulseS, isN and pulseNS or pulseSS
+                local d = 16 + 34 * ph
+                f.Size = UDim2.fromOffset(d, d)
+                f.Position = UDim2.fromOffset(v.X, v.Y)
+                s.Color = c
+                s.Transparency = 0.15 + 0.85 * ph
+                f.Visible = true
+            end
+        end
+    end
+
+    if target and target.part.Parent then
+        local tc = entryColor(target, target == cand.nearest, target == cand.second)
+        if cand.flee then tc = Options.ColDanger.Value end
+        local v, on = Camera:WorldToViewportPoint(target.part.Position)
+        if Toggles.CandyTracer.Value and on then
+            setLine(tracerCore, tracerGlow, Vector2.new(vp.X / 2, vp.Y - 8), Vector2.new(v.X, v.Y), tc, 2)
+        end
+        if Toggles.CandyArrow.Value and not on then
+            local rel = Camera.CFrame:PointToObjectSpace(target.part.Position)
+            local dir = Vector2.new(rel.X, -rel.Y)
+            dir = dir.Magnitude > 1e-3 and dir.Unit or Vector2.new(0, 1)
+            local pos = vp / 2 + dir * (math.min(vp.X, vp.Y) * 0.42)
+            arrowDot.Position = UDim2.fromOffset(pos.X, pos.Y)
+            arrowDot.BackgroundColor3 = tc
+            arrowDot.Visible = true
+            arrowPill.Position = UDim2.fromOffset(pos.X - dir.X * 38, pos.Y - dir.Y * 26)
+            arrowPill.Text = (cand.flee and "FAR " or "TARGET ") .. math.floor(target.dist) .. "m"
+            arrowPill.TextColor3 = tc
+            arrowPS.Color = tc
+            arrowPill.Visible = true
+        end
+    end
+
+    if Toggles.NearestHL.Value then
+        hlN.Adornee = cand.nearest and cand.nearest.part or nil
+        hlS.Adornee = cand.second and cand.second.part or nil
+        local cn = cand.nearest and entryColor(cand.nearest, true, false) or WHITE
+        local cs = cand.second and entryColor(cand.second, false, true) or WHITE
+        hlN.FillColor, hlN.OutlineColor = cn, cn:Lerp(WHITE, 0.5)
+        hlS.FillColor, hlS.OutlineColor = cs, cs:Lerp(WHITE, 0.5)
+    else
+        hlN.Adornee, hlS.Adornee = nil, nil
+    end
+end
+
+local function drawRoles()
+    for _, rt in ipairs(roleTags) do rt.pill.Visible = false end
+    for _, p in ipairs(Players:GetPlayers()) do
+        local char, r = getChar(p), roles[p]
+        local want = Toggles.RoleChams.Value and p ~= LP and char and (r == "Murderer" or r == "Sheriff")
+        local hl = roleHL[p]
+        if want then
+            if not hl or hl.Adornee ~= char then
+                if hl then hl:Destroy() end
+                hl = mk("Highlight", { Adornee = char, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop, FillTransparency = 0.55 }, GuiParent)
+                roleHL[p] = hl
+            end
+            local rc = r == "Murderer" and Options.ColMurd.Value or Options.ColSheriff.Value
+            hl.FillColor, hl.OutlineColor = rc, rc:Lerp(WHITE, 0.5)
+        elseif hl then
+            hl:Destroy()
+            roleHL[p] = nil
+        end
+    end
+    if not Toggles.RoleTags.Value then return end
+    local me = getHRP(LP)
+    local n = 0
+    for p, r in pairs(roles) do
+        if p ~= LP and (r == "Murderer" or r == "Sheriff") and n < #roleTags then
+            local head = getChar(p) and getChar(p):FindFirstChild("Head")
+            if head then
+                local v, on = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.6, 0))
+                if on then
+                    n += 1
+                    local rt = roleTags[n]
+                    local rc = r == "Murderer" and Options.ColMurd.Value or Options.ColSheriff.Value
+                    local d = me and math.floor((head.Position - me.Position).Magnitude) or 0
+                    rt.pill.Text = string.upper(r) .. "  " .. d .. "m"
+                    rt.pill.TextColor3 = rc
+                    rt.st.Color = rc
+                    rt.pill.Position = UDim2.fromOffset(v.X, v.Y)
+                    rt.pill.Visible = true
+                end
+            end
+        end
+    end
+end
+
+local engaged, engHum, engPlat = false, nil, false
+local grindToken, grindBusy = 0, false
+local failCount = setmetatable({}, { __mode = "k" })
+local failUntil = setmetatable({}, { __mode = "k" })
+local touchStamp = setmetatable({}, { __mode = "k" })
+local consecFail, pauseUntil, lastPauseNote = 0, 0, 0
+
+local function userMoving(hum)
+    if UIS:GetFocusedTextBox() then return false end
+    if hum and hum.MoveDirection.Magnitude > 0.1 then return true end
+    for _, k in ipairs({ Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D }) do
+        if UIS:IsKeyDown(k) then return true end
+    end
+    return false
+end
+
+local function engage(hum)
+    if engaged then return end
+    engaged, engHum, engPlat = true, hum, hum.PlatformStand
+    hum.PlatformStand = true
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+end
+local function disengage()
+    if not engaged then return end
+    engaged = false
+    local hum = engHum
+    engHum = nil
+    local hrp = getHRP(LP)
+    if hrp then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end
+    if hum and hum.Parent then
+        hum.PlatformStand = engPlat or false
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+end
+
+local function touchNear(hrp, range)
+    if not firetouchinterest then return end
+    local now = os.clock()
+    for part in pairs(coins) do
+        if part.Parent and now - (touchStamp[part] or 0) > 0.35 and (part.Position - hrp.Position).Magnitude <= range then
+            touchStamp[part] = now
+            pcall(firetouchinterest, hrp, part, 0)
+            task.delay(0.03, function() pcall(firetouchinterest, hrp, part, 1) end)
+        end
+    end
+end
+
+local function valid(token)
+    if Library.Unloaded or token ~= grindToken or not Toggles.Grind.Value then return false end
+    local hum = getHum(LP)
+    if not hum or hum.Health <= 0 or not getHRP(LP) then return false end
+    if Toggles.PauseMoving.Value and userMoving(hum) then return false end
+    return true
+end
+
+local function holdAt(hrp, part, secs, minSecs, token)
+    local t0 = os.clock()
+    while true do
+        if not hrp.Parent or not valid(token) then return false end
+        local el = os.clock() - t0
+        if el >= secs then break end
+        if el >= minSecs and gone(part) then break end
+        if part.Parent then hrp.CFrame = CFrame.new(part.Position) * (hrp.CFrame - hrp.CFrame.Position) end
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        RunService.Heartbeat:Wait()
+    end
+    return true
+end
+
+local function hover(hrp, secs, token)
+    local cf = hrp.CFrame
+    local t0 = os.clock()
+    while os.clock() - t0 < secs do
+        if not hrp.Parent or not valid(token) then return false end
+        hrp.CFrame = cf
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        RunService.Heartbeat:Wait()
+    end
+    return true
+end
+
+-- slow mode: stay where we are (no CFrame snapping onto the candy) and just send touches until it is taken
+local function settle(hrp, part, token)
+    local t0 = os.clock()
+    local cf = hrp.CFrame
+    while os.clock() - t0 < 0.8 do
+        if not hrp.Parent or not valid(token) then return false end
+        if gone(part) then break end
+        hrp.CFrame = cf
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        touchNear(hrp, 6)
+        RunService.Heartbeat:Wait()
+    end
+    return true
+end
+
+local function flyTo(hrp, part, token, wasFlee)
+    local slow = Toggles.SlowFly.Value
+    local speed = slow and Options.SlowSpeed.Value or Options.FlySpeed.Value
+    local lastTouch = 0
+    while true do
+        if not hrp.Parent or not valid(token) then return "abort" end
+        if not part.Parent or gone(part) then return "gone" end
+        if cand.flee ~= wasFlee then return "retarget" end
+        local d = part.Position - hrp.Position
+        local dist = d.Magnitude
+        if dist <= 1.2 then return "arrived" end
+        local dt = RunService.Heartbeat:Wait()
+        if not hrp.Parent then return "abort" end
+        hrp.CFrame = hrp.CFrame + d.Unit * math.min(speed * dt, dist)
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        if Toggles.TouchAssist.Value and os.clock() - lastTouch > 0.1 then
+            lastTouch = os.clock()
+            touchNear(hrp, slow and 5 or 12)
+        end
+    end
+end
+
+local function recordResult(part)
+    if gone(part) or os.clock() - lastBagUp < 1.2 then
+        consecFail = 0
+        failCount[part] = nil
+        lastProgress = os.clock()
+        return
+    end
+    local f = (failCount[part] or 0) + 1
+    failCount[part] = f
+    failUntil[part] = os.clock() + math.min(2 * f, 12)
+    -- ghost candy: we stood on it twice and nothing happened, ignore it for a while
+    if f >= 2 then ghostUntil[part] = os.clock() + 25 end
+    consecFail += 1
+    if consecFail >= 3 then bagGuessUntil = os.clock() + 6 end
+    if consecFail >= 8 then
+        consecFail = 0
+        pauseUntil = os.clock() + 5
+        if os.clock() - lastPauseNote > 20 then
+            lastPauseNote = os.clock()
+            Library:Notify("Pickups are not registering (bag full?). Pausing 5 seconds.", 5, "warn")
+        end
+    end
+end
+
+-- ===== bag full detection + kill all =====
+local killBusy, killDone = false, false
+local bagFullGui, bagCheckT = false, 0
+
+local bagCountVal, bagPrev, bagMaxVal = nil, nil, nil
+local bagLabelCache, bagFullLabels, bagScanAt = nil, {}, 0
+
+local function findBagLabels()
+    local out, fulls = {}, {}
+    local pg = LP:FindFirstChildOfClass("PlayerGui")
+    if not pg then return out, fulls end
+    local found = pg:FindFirstChild("CoinBags", true)
+    local root = found or pg
+    for _, d in ipairs(root:GetDescendants()) do
+        if d:IsA("TextLabel") then
+            local path = d:GetFullName():lower()
+            if d.Text:match("(%d+)%s*/%s*(%d+)") then
+                if found or path:find("coin") or path:find("candy") or path:find("bag") then out[#out + 1] = d end
+            elseif found and d.Text:lower():match("^%s*full%s*$") then
+                fulls[#fulls + 1] = d
+            end
+        end
+    end
+    return out, fulls
+end
+
+local function readBag()
+    local now = os.clock()
+    if not bagLabelCache or now - bagScanAt > 3 then
+        bagLabelCache, bagFullLabels = findBagLabels()
+        bagScanAt = now
+    end
+    local anyFull, candyFull, hasCandy = false, false, false
+    local cA, cB, anyA, anyB
+    for _, d in ipairs(bagLabelCache) do
+        if d.Parent then
+            local a, b = d.Text:match("(%d+)%s*/%s*(%d+)")
+            if a then
+                a, b = tonumber(a), tonumber(b)
+                local full = b > 0 and a >= b
+                if not anyA then anyA, anyB = a, b end
+                if d:GetFullName():lower():find("candy") then
+                    hasCandy = true
+                    cA, cB = a, b
+                    if full then candyFull = true end
+                end
+                if full then anyFull = true end
+            end
+        end
+    end
+    local explicitFull = false
+    for _, d in ipairs(bagFullLabels) do
+        if d.Parent and d.Visible and d.AbsoluteSize.X > 0 then explicitFull = true end
+    end
+    bagCountVal = hasCandy and cA or anyA
+    bagMaxVal = hasCandy and cB or anyB
+    if hasCandy then return candyFull or explicitFull end
+    return anyFull or explicitFull
+end
+
+local function bagIsFull()
+    local limit = Options.BagMax.Value
+    local atLimit = (bagCountVal ~= nil and bagCountVal >= limit)
+        or (bagCountVal == nil and stats.collected - roundBase >= limit)
+    return atLimit or bagFullGui or os.clock() < pauseUntil or (bagCountVal == nil and os.clock() < bagGuessUntil)
+end
+
+local fullHandled, fullMin, fullAt, zeroSince = false, 0, 0, nil
+local function bagEmptied()
+    fullHandled, zeroSince, roundBase = false, nil, stats.collected
+    pauseUntil, bagGuessUntil, consecFail = 0, 0, 0
+    if not Toggles.CandyESP.Value then Toggles.CandyESP:SetValue(true) end
+    Library:Notify("Bag is empty - ESP back on", 3)
+end
+-- a new round respawns you with an empty bag
+table.insert(connections, LP.CharacterAdded:Connect(function()
+    task.wait(1)
+    if fullHandled then bagEmptied() end
+end))
+
+local function wantKillNow()
+    return Toggles.KillAll.Value and not killDone and roles[LP] == "Murderer" and bagIsFull()
+end
+
+local randomPick, randomUntil, lastCollectedSeen = nil, 0, 0
+
+local function pickEntry()
+    local now = os.clock()
+    if stats.collected ~= lastCollectedSeen then
+        lastCollectedSeen = stats.collected
+        lastProgress = now
+        randomPick = nil
+    end
+    if randomPick then
+        if randomPick.Parent and not gone(randomPick) and now < randomUntil then return { part = randomPick } end
+        randomPick = nil
+    end
+    local avail = {}
+    for _, e in ipairs(cand.order) do
+        if e.part.Parent and not gone(e.part) and (failUntil[e.part] or 0) < now then avail[#avail + 1] = e end
+    end
+    if #avail == 0 then
+        lastProgress = now
+        return nil
+    end
+    -- stuck between the two best candies: nothing collected for N seconds -> random one
+    if Toggles.RandomUnstick.Value and #avail > 1 and now - lastProgress > Options.StuckTime.Value then
+        local pool, safe = {}, {}
+        for i = 3, #avail do
+            pool[#pool + 1] = avail[i]
+            if not avail[i].danger then safe[#safe + 1] = avail[i] end
+        end
+        if #safe > 0 then pool = safe end
+        if #pool == 0 then pool = { avail[#avail] } end
+        local pickE = pool[math.random(#pool)]
+        randomPick, randomUntil = pickE.part, now + 10
+        lastProgress = now
+        Library:Notify("Stuck - going to a random candy", 2, "warn")
+        return pickE
+    end
+    return avail[1]
+end
+
+local function grindRun(token)
+    local hum = getHum(LP)
+    local slow = Toggles.SlowFly.Value
+    local isTP = Options.GrindMode.Value == "Teleport" and not slow
+    local delay = (isTP and Options.TPDelay.Value or Options.FlyDelay.Value) / 1000
+    local ok, err = pcall(function()
+        while valid(token) do
+            if os.clock() < pauseUntil and not wantKillNow() then break end
+            if wantKillNow() then break end
+            local hrp = getHRP(LP)
+            local e = pickEntry()
+            if not hrp or not e then break end
+            if not engaged then engage(hum) end
+            local part = e.part
+            local did = false
+            if isTP then
+                hrp.CFrame = CFrame.new(part.Position) * (hrp.CFrame - hrp.CFrame.Position)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                if not holdAt(hrp, part, math.max(delay, 0.2), delay, token) then break end
+                recordResult(part)
+                did = true
+            else
+                local res = flyTo(hrp, part, token, cand.flee)
+                if res == "abort" then break end
+                if res == "gone" and Toggles.OthersNotify.Value then Library:Notify("Target taken - switching candy", 1.5, "warn") end
+                if res == "arrived" then
+                    if slow then
+                        if not settle(hrp, part, token) then break end
+                    elseif not holdAt(hrp, part, 0.3, 0, token) then
+                        break
+                    end
+                    recordResult(part)
+                    did = true
+                    if delay > 0 and not hover(hrp, delay, token) then break end
+                end
+            end
+            local extra = Options.CandyDelay.Value / 1000
+            if did and extra > 0 and hrp.Parent and not hover(hrp, extra, token) then break end
+            RunService.Heartbeat:Wait()
+        end
+    end)
+    disengage()
+    if not ok then Library:Notify("Grind error: " .. tostring(err), 6, "bad") end
+end
+
+-- ===== kill all (murderer) =====
+local function getKnife()
+    local char = getChar(LP)
+    local k = char and char:FindFirstChild("Knife")
+    if k and k:IsA("Tool") then return k end
+    local bp = LP:FindFirstChildOfClass("Backpack")
+    k = bp and bp:FindFirstChild("Knife")
+    if k and k:IsA("Tool") then
+        local hum = getHum(LP)
+        if hum then
+            hum:EquipTool(k)
+            task.wait(0.15)
+        end
+        local c2 = getChar(LP)
+        return (c2 and c2:FindFirstChild("Knife")) or k
+    end
+end
+
+local function stab(tp, tok)
+    local t0 = os.clock()
+    local limit = Options.KillTimeout.Value
+    while isAlive(tp) and os.clock() - t0 < limit do
+        if tok ~= killToken or Library.Unloaded or not isAlive(LP) then return false end
+        local myHrp, thrp = getHRP(LP), getHRP(tp)
+        if not myHrp or not thrp then break end
+        myHrp.CFrame = thrp.CFrame * CFrame.new(0, 0, 2) -- right behind them
+        myHrp.AssemblyLinearVelocity = Vector3.zero
+        local c = getChar(LP)
+        local knife = c and c:FindFirstChild("Knife")
+        if not knife then return false end
+        pcall(function() knife:Activate() end)
+        local remote = knife:FindFirstChild("Stab", true) or knife:FindFirstChild("Slash", true)
+        if remote and remote:IsA("RemoteEvent") then pcall(function() remote:FireServer("Slash") end) end
+        local handle = knife:FindFirstChild("Handle")
+        if handle and firetouchinterest then
+            pcall(firetouchinterest, thrp, handle, 0)
+            pcall(firetouchinterest, thrp, handle, 1)
+        end
+        RunService.Heartbeat:Wait()
+    end
+    return not isAlive(tp)
+end
+
+killAll = function()
+    if killBusy then return end
+    if roles[LP] ~= "Murderer" then
+        Library:Notify("Kill all: you are not the murderer.", 3, "warn")
+        return
+    end
+    killBusy = true
+    killToken += 1
+    local tok = killToken
+    grindToken += 1
+    local w = 0
+    while grindBusy and w < 1.5 do w += task.wait() end
+    local killed = 0
+    local ok, err = pcall(function()
+        local knife = getKnife()
+        if not knife then
+            Library:Notify("Kill all: no knife found.", 3, "bad")
+            return
+        end
+        Library:Notify("Kill all started", 2, "bad")
+        for _ = 1, 3 do
+            local targets = {}
+            for p in pairs(roles) do
+                if p ~= LP and isAlive(p) and getHRP(p) then targets[#targets + 1] = p end
+            end
+            if #targets == 0 then break end
+            for _, tp in ipairs(targets) do
+                if tok ~= killToken or Library.Unloaded or not isAlive(LP) then return end
+                if isAlive(tp) and stab(tp, tok) then killed += 1 end
+            end
+        end
+    end)
+    killBusy = false
+    killDone = true
+    if not ok then Library:Notify("Kill all error: " .. tostring(err), 5, "bad") end
+    if tok == killToken then Library:Notify("Kill all finished (" .. killed .. " down)", 3) end
+end
+
+-- ===== auto pick up dropped gun =====
+local gunDrops = {}
+local gunSkip = setmetatable({}, { __mode = "k" })
+local function trackGun(inst)
+    if inst:IsA("BasePart") and inst.Name == "GunDrop" then gunDrops[inst] = true end
+end
+for _, d in ipairs(workspace:GetDescendants()) do trackGun(d) end
+table.insert(connections, workspace.DescendantAdded:Connect(trackGun))
+
+local function nearestGun()
+    local hrp = getHRP(LP)
+    if not hrp then return nil end
+    local best, bd = nil, math.huge
+    for part in pairs(gunDrops) do
+        if not part.Parent then
+            gunDrops[part] = nil
+        elseif (gunSkip[part] or 0) < os.clock() then
+            local d = (part.Position - hrp.Position).Magnitude
+            if d < bd then best, bd = part, d end
+        end
+    end
+    return best
+end
+
+local gunBusy = false
+local function gunRun(drop)
+    gunBusy = true
+    local hum = getHum(LP)
+    local ok, err = pcall(function()
+        local function got() return holdsTool(LP, "Gun") end
+        -- 1) touch signal only
+        local t0 = os.clock()
+        while drop.Parent and os.clock() - t0 < 1 and not got() do
+            local hrp = getHRP(LP)
+            if not hrp or Library.Unloaded or not isAlive(LP) then return end
+            if firetouchinterest then
+                pcall(firetouchinterest, hrp, drop, 0)
+                pcall(firetouchinterest, hrp, drop, 1)
+            end
+            task.wait(0.1)
+        end
+        if got() or not drop.Parent then return end
+        -- 2) fly there
+        if not Toggles.AutoGunFly.Value or not hum then return end
+        local speed = Toggles.SlowFly.Value and Options.SlowSpeed.Value or Options.FlySpeed.Value
+        engage(hum)
+        t0 = os.clock()
+        while drop.Parent and os.clock() - t0 < 25 and not got() do
+            local hrp = getHRP(LP)
+            if not hrp or Library.Unloaded or not isAlive(LP) or not Toggles.AutoGun.Value then return end
+            local d = drop.Position - hrp.Position
+            local dist = d.Magnitude
+            if dist <= 1.5 then
+                if firetouchinterest then
+                    pcall(firetouchinterest, hrp, drop, 0)
+                    pcall(firetouchinterest, hrp, drop, 1)
+                end
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                RunService.Heartbeat:Wait()
+            else
+                local dt = RunService.Heartbeat:Wait()
+                hrp.CFrame = hrp.CFrame + d.Unit * math.min(speed * dt, dist)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+            end
+        end
+    end)
+    disengage()
+    if holdsTool(LP, "Gun") then
+        Library:Notify("Picked up the gun", 3)
+    elseif drop.Parent then
+        gunSkip[drop] = os.clock() + 10
+    end
+    gunBusy = false
+    if not ok then Library:Notify("Gun pickup error: " .. tostring(err), 4, "bad") end
+end
+
+task.spawn(function()
+    while not Library.Unloaded do
+        task.wait(0.1)
+        if os.clock() - bagCheckT > 0.5 then
+            bagCheckT = os.clock()
+            bagFullGui = readBag()
+            -- server-confirmed pickup: the bag counter went up
+            local c = bagCountVal
+            if c then
+                if bagPrev and c > bagPrev then
+                    stats.confirmed = (stats.confirmed or 0) + (c - bagPrev)
+                    lastBagUp = os.clock()
+                    lastProgress = os.clock()
+                end
+                -- empty only counts after we handled a full bag, and only if it stays at 0 for a moment
+                if fullHandled and c == 0 then zeroSince = zeroSince or os.clock() else zeroSince = nil end
+                if fullHandled and zeroSince and os.clock() - zeroSince > 1.5 and os.clock() - fullAt > 5 then bagEmptied() end
+                bagPrev = c
+            end
+            if bagInfoLabel then
+                bagInfoLabel:SetText(bagCountVal
+                    and ("Bag: " .. bagCountVal .. (bagMaxVal and ("/" .. bagMaxVal) or "") .. (bagFullGui and "  (FULL)" or ""))
+                    or "Bag: not found - using pickup failures")
+            end
+        end
+        if roles[LP] ~= "Murderer" then killDone = false end
+        if not killBusy and isAlive(LP) and wantKillNow() then
+            killAll()
+        end
+        if Toggles.StopWhenFull.Value and not fullHandled and bagIsFull() then
+            fullHandled, fullAt, zeroSince = true, os.clock(), nil
+            Library:Notify("Bag is full (" .. Options.BagMax.Value .. ") - auto grind + ESP turned off", 4, "warn")
+        end
+        -- while the bag is full everything stays fully off until it is empty again
+        if fullHandled then
+            for _, n in ipairs({ "Grind", "CandyWalk", "TouchAura", "CandyESP" }) do
+                if Toggles[n] and Toggles[n].Value then Toggles[n]:SetValue(false) end
+            end
+        end
+        if Toggles.AutoGun.Value and not gunBusy and not killBusy and isAlive(LP)
+            and roles[LP] ~= "Murderer" and not holdsTool(LP, "Gun") then
+            local drop = nearestGun()
+            if drop then gunRun(drop) end
+        end
+        if Toggles.Grind.Value and not grindBusy and not killBusy and os.clock() >= pauseUntil then
+            local hum = getHum(LP)
+            if hum and hum.Health > 0 and getHRP(LP) and #cand.order > 0
+                and not (Toggles.PauseMoving.Value and userMoving(hum)) and not wantKillNow() and not fullHandled then
+                grindBusy = true
+                grindRun(grindToken)
+                grindBusy = false
+            end
+        end
+    end
+end)
+
+-- ===== noclip (walls + floors) while flying / teleporting / under map =====
+local function noclipStep()
+    if not (engaged or Toggles.UnderMap.Value) then return end
+    local c = getChar(LP)
+    if not c then return end
+    for _, p in ipairs(c:GetDescendants()) do
+        if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end
+    end
+    if engaged then
+        local hum = getHum(LP)
+        if hum then
+            hum.PlatformStand = true
+            local hrp = getHRP(LP)
+            if hrp and hrp.AssemblyLinearVelocity.Y < -1 then
+                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
+            end
+        end
+    end
+end
+table.insert(connections, RunService.Stepped:Connect(noclipStep))
+table.insert(connections, RunService.Heartbeat:Connect(noclipStep))
+
+-- ===== avatar under map (testing) =====
+-- Moves only the visual body down relative to the root part (the hitbox stays in the map).
+local underJoint, underOrig = nil, nil
+local function restoreUnder()
+    if underJoint and underJoint.Parent then pcall(function() underJoint.C1 = underOrig end) end
+    underJoint, underOrig = nil, nil
+    local hum = getHum(LP)
+    if hum and Camera.CameraSubject ~= hum then pcall(function() Camera.CameraSubject = hum end) end
+end
+local function updateUnder()
+    if not Toggles.UnderMap.Value then
+        if underJoint then restoreUnder() end
+        return
+    end
+    local hrp = getHRP(LP)
+    if not hrp then return end
+    if not underJoint or not underJoint.Parent or underJoint.Part0 ~= hrp then
+        underJoint, underOrig = nil, nil
+        for _, d in ipairs(getChar(LP):GetDescendants()) do
+            if d:IsA("Motor6D") and d.Part0 == hrp then
+                underJoint, underOrig = d, d.C1
+                break
+            end
+        end
+    end
+    if underJoint then
+        underJoint.C1 = underOrig * CFrame.new(0, Options.UnderDepth.Value, 0)
+    end
+    if Camera.CameraSubject ~= hrp then pcall(function() Camera.CameraSubject = hrp end) end
+end
+
+local walking = false
+local function walkLoop()
+    if walking then return end
+    walking = true
+    while Toggles.CandyWalk.Value and not Library.Unloaded do
+        local hrp, hum = getHRP(LP), getHum(LP)
+        local e = cand.order[1]
+        if hrp and hum and hum.Health > 0 and e and e.part.Parent then
+            local goal = e.part
+            local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = true })
+            local ok = pcall(function() path:ComputeAsync(hrp.Position, goal.Position) end)
+            if ok and path.Status == Enum.PathStatus.Success then
+                for _, wp in ipairs(path:GetWaypoints()) do
+                    if not Toggles.CandyWalk.Value or not goal.Parent then break end
+                    if wp.Action == Enum.PathWaypointAction.Jump then hum.Jump = true end
+                    hum:MoveTo(wp.Position)
+                    local t0 = os.clock()
+                    repeat task.wait(0.05) until (hrp.Position - wp.Position).Magnitude < 4 or os.clock() - t0 > 1.5
+                        or not Toggles.CandyWalk.Value or not goal.Parent
+                    if cand.order[1] and cand.order[1].part ~= goal then break end
+                end
+            else
+                hum:MoveTo(goal.Position)
+                task.wait(0.4)
+            end
+        else
+            task.wait(0.2)
+        end
+        task.wait()
+    end
+    walking = false
+end
+
+Toggles.Grind:OnChanged(function()
+    grindToken += 1
+    lastProgress = os.clock()
+    randomPick = nil
+    if Toggles.Grind.Value and Toggles.CandyWalk.Value then Toggles.CandyWalk:SetValue(false) end
+end)
+Options.GrindMode:OnChanged(function() grindToken += 1 end)
+Toggles.SlowFly:OnChanged(function() grindToken += 1 end)
+Toggles.CandyWalk:OnChanged(function()
+    if Toggles.CandyWalk.Value then
+        if Toggles.Grind.Value then Toggles.Grind:SetValue(false) end
+        task.spawn(walkLoop)
+    else
+        local hum, hrp = getHum(LP), getHRP(LP)
+        if hum and hrp then hum:MoveTo(hrp.Position) end
+    end
+end)
+Toggles.KillAll:OnChanged(function()
+    if not Toggles.KillAll.Value then
+        killToken += 1 -- turning it off also aborts a running kill all
+    end
+end)
+Toggles.UnderMap:OnChanged(function()
+    if not Toggles.UnderMap.Value then restoreUnder() end
+end)
+Toggles.FurthestFirst:OnChanged(function() randomPick = nil end)
+
+local ring
+local CANVAS = 1024
+local function circleFrame(parent, frac)
+    local f = mk("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1 - frac, 1 - frac),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+    }, parent)
+    circ(f)
+    return f
+end
+local function arcStroke(frame, thick, keys)
+    local s = mk("UIStroke", { Thickness = thick, Color = WHITE, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, frame)
+    local pts = {}
+    for _, k in ipairs(keys) do table.insert(pts, NSK(k[1], k[2])) end
+    local g = mk("UIGradient", { Transparency = NumberSequence.new(pts) }, s)
+    return s, g
+end
+
+local function buildRing()
+    local part = mk("Part", {
+        Name = "FwSerialAura", Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false, CastShadow = false,
+        Transparency = 1, Size = Vector3.new(2, 0.05, 2),
+    })
+    local sg = mk("SurfaceGui", {
+        Face = Enum.NormalId.Top, SizingMode = Enum.SurfaceGuiSizingMode.FixedSize, CanvasSize = Vector2.new(CANVAS, CANVAS), LightInfluence = 0,
+    }, part)
+    pcall(function() sg.Brightness = 1.6 end)
+    sg.Adornee = part
+    local fill = circleFrame(sg, 0.12)
+    fill.BackgroundTransparency = 0.9
+    local base = mk("UIStroke", { Thickness = 2, Transparency = 0.6, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, circleFrame(sg, 0.012))
+    local outer, outerG = arcStroke(circleFrame(sg, 0.045), 7, { { 0, 0 }, { 0.2, 0 }, { 0.26, 1 }, { 0.5, 1 }, { 0.56, 0 }, { 0.7, 0 }, { 0.76, 1 }, { 1, 1 } })
+    local inner, innerG = arcStroke(circleFrame(sg, 0.1), 3, { { 0, 0.15 }, { 0.15, 0.15 }, { 0.22, 1 }, { 0.5, 1 }, { 0.56, 0.15 }, { 0.72, 0.15 }, { 0.78, 1 }, { 1, 1 } })
+    part.Parent = Camera
+    return { part = part, fill = fill, base = base, outer = outer, outerG = outerG, inner = inner, innerG = innerG }
+end
+
+local function updateRing(r, hrp, radius, c)
+    local t = os.clock()
+    local ignore = { r.part }
+    if LP.Character then table.insert(ignore, LP.Character) end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = ignore
+    local hit = workspace:Raycast(hrp.Position, Vector3.new(0, -40, 0), params)
+    local y = hit and (hit.Position.Y + 0.06) or (hrp.Position.Y - 3)
+    local size = radius * 2
+    local px = CANVAS / size
+    r.part.Size = Vector3.new(size, 0.05, size)
+    r.part.CFrame = CFrame.new(hrp.Position.X, y, hrp.Position.Z)
+    local dark = c:Lerp(BLACK, 0.55)
+    r.outerG.Color = ColorSequence.new(c, dark)
+    r.innerG.Color = ColorSequence.new(dark, c)
+    r.outerG.Rotation = (t * 80) % 360
+    r.innerG.Rotation = (-t * 120) % 360
+    r.fill.BackgroundColor3 = c
+    r.fill.BackgroundTransparency = 0.9 + math.sin(t * 2.2) * 0.04
+    r.base.Color = c
+    r.base.Thickness = math.clamp(0.12 * px, 1, 4)
+    r.outer.Thickness = math.clamp(0.6 * px * (1 + math.sin(t * 3) * 0.2), 3, 16)
+    r.inner.Thickness = math.clamp(0.28 * px, 1.5, 8)
+end
+
+local function destroyRing()
+    if ring then
+        pcall(function() ring.part:Destroy() end)
+        ring = nil
+    end
+end
+
+local auraTok = 0
+local function touchAuraStep(dt)
+    if not Toggles.TouchAura.Value or not firetouchinterest then
+        auraTok = 0
+        return
+    end
+    local hrp = getHRP(LP)
+    if not hrp or not isAlive(LP) then return end
+    auraTok = math.min(auraTok + dt * Options.AuraRate.Value, 6)
+    if auraTok < 1 then return end
+    local radius = Options.AuraRadius.Value
+    local now = os.clock()
+    for _, e in ipairs(cand.list) do
+        if auraTok < 1 or e.dist > radius then break end
+        local part = e.part
+        if part.Parent and now - (touchStamp[part] or 0) > 0.4 then
+            touchStamp[part] = now
+            auraTok -= 1
+            pcall(firetouchinterest, hrp, part, 0)
+            task.delay(0.03, function() pcall(firetouchinterest, hrp, part, 1) end)
+        end
+    end
+end
+
+local function statusText()
+    if killBusy then return "KILL ALL running", TH.Bad end
+    if Toggles.Grind.Value then
+        if grindBusy then return (cand.flee and "Fleeing to far candy" or (Toggles.FurthestFirst.Value and "Grinding (far first)" or "Grinding")) .. "  -  " .. (Toggles.SlowFly.Value and "Slow fly" or Options.GrindMode.Value), TH.Good end
+        if os.clock() < pauseUntil then return "Paused  -  pickups failing", TH.Warn end
+        local hum = getHum(LP)
+        if Toggles.PauseMoving.Value and hum and userMoving(hum) then return "Paused  -  you are moving", TH.Warn end
+        if #cand.list == 0 then return "Waiting for candy", TH.Dim end
+        return "Ready", TH.Good
+    end
+    if Toggles.TouchAura.Value then return "Touch aura", TH.Good end
+    if Toggles.CandyWalk.Value then return "Walking to candy", TH.Good end
+    return "Idle", TH.Dim
+end
+
+local hudT = 0
+local function updateHud(dt)
+    hudT += dt
+    if hudT < 0.15 then return end
+    hudT = 0
+    hudFrame.Visible = Toggles.StatusHUD.Value
+    if not hudFrame.Visible then return end
+    local s, c = statusText()
+    local near = cand.nearest and (math.floor(cand.nearest.dist) .. "m") or "-"
+    local txt = s .. "   |   " .. stats.collected .. " collected   |   " .. #cand.list .. " left" .. (bagCountVal and ("   |   bag " .. bagCountVal) or "") .. ((stats.others or 0) > 0 and ("   |   others " .. stats.others) or "") .. "   |   nearest " .. near
+    hudText.Text = txt
+    local w = TextService:GetTextSize(txt, 13, FONT, Vector2.new(1000, 20)).X + 46
+    hudFrame.Size = UDim2.fromOffset(math.max(w, 180), 34)
+    hudDot.BackgroundColor3 = c
+end
+
+-- ===== sky safety =====
+local skyT, lastGroundCF = 0, nil
+local skyParams = RaycastParams.new()
+skyParams.FilterType = Enum.RaycastFilterType.Exclude
+local function groundBelow(hrp)
+    local ignore = { Camera }
+    if LP.Character then table.insert(ignore, LP.Character) end
+    for _ = 1, 6 do
+        skyParams.FilterDescendantsInstances = ignore
+        local hit = workspace:Raycast(hrp.Position, Vector3.new(0, -500, 0), skyParams)
+        if not hit then return nil end
+        if hit.Instance.CanCollide and hit.Instance.Transparency < 0.95 and not coins[hit.Instance] then return hit end
+        table.insert(ignore, hit.Instance)
+    end
+    return nil
+end
+local function skyStep(dt)
+    if not Toggles.SkySafety.Value then skyT = 0 return end
+    local hrp = getHRP(LP)
+    if not hrp or not isAlive(LP) then skyT = 0 return end
+    local hit = groundBelow(hrp)
+    local h = hit and (hrp.Position.Y - hit.Position.Y) or math.huge
+    if h <= Options.SkyHeight.Value then
+        skyT = 0
+        lastGroundCF = hrp.CFrame
+        return
+    end
+    skyT += dt
+    if skyT < Options.SkyTime.Value then return end
+    skyT = 0
+    Toggles.Grind:SetValue(false)
+    Library:Notify("Sky safety: back on the ground, auto grind off", 4, "warn")
+    task.spawn(function()
+        task.wait(0.2) -- let the grind loop release the character first
+        local h2 = getHRP(LP)
+        if not h2 then return end
+        local g = groundBelow(h2)
+        local rot = h2.CFrame - h2.CFrame.Position
+        if g then
+            h2.CFrame = CFrame.new(g.Position + Vector3.new(0, 4, 0)) * rot
+        elseif lastGroundCF then
+            h2.CFrame = lastGroundCF
+        end
+        h2.AssemblyLinearVelocity = Vector3.zero
+        h2.AssemblyAngularVelocity = Vector3.zero
+    end)
+end
+
+local scanT, roleT = 0, 0
+table.insert(connections, RunService.Heartbeat:Connect(function(dt)
+    if Library.Unloaded then return end
+    Camera = workspace.CurrentCamera
+    roleT += dt
+    if roleT > 0.25 then
+        roleT = 0
+        refreshRoles()
+    end
+    scanT += dt
+    if scanT > 0.12 then
+        scanT = 0
+        scanCandy()
+    end
+    touchAuraStep(dt)
+    skyStep(dt)
+end))
+
+table.insert(connections, RunService.RenderStepped:Connect(function(dt)
+    if Library.Unloaded then return end
+    Camera = workspace.CurrentCamera
+    updateUnder()
+    drawCandy()
+    drawRoles()
+    updateHud(dt)
+    local hrp = getHRP(LP)
+    if Toggles.TouchAura.Value and Toggles.AuraShow.Value and hrp and isAlive(LP) then
+        if ring and not ring.part.Parent then ring = nil end
+        if not ring then ring = buildRing() end
+        updateRing(ring, hrp, Options.AuraRadius.Value, Options.AuraColor.Value)
+    else
+        destroyRing()
+    end
+end))
+
+table.insert(connections, Players.PlayerRemoving:Connect(function(p)
+    roles[p] = nil
+    if roleHL[p] then roleHL[p]:Destroy() roleHL[p] = nil end
+end))
+
+panic = function()
+    grindToken += 1
+    killToken += 1
+    for _, n in ipairs({ "Grind", "CandyWalk", "TouchAura", "KillAll", "UnderMap" }) do
+        if Toggles[n] and Toggles[n].Value then Toggles[n]:SetValue(false) end
+    end
+    Library:Notify("Panic: grind / walk / aura / kill all / under map off", 3, "warn")
+end
+actionBinds.PanicKey = panic
+MenuGroup:AddButton("Panic (stop everything)", panic)
+MenuGroup:AddButton("Reset session stats", function()
+    stats.collected, stats.startAt = 0, os.clock()
+end)
+MenuGroup:AddButton("Clear all keybinds", function()
+    for _, opt in pairs(Options) do
+        if type(opt) == "table" and opt.Type == "KeyPicker" and opt ~= Options.MenuKeybind then opt:SetValue({ "None" }) end
+    end
+    Library:Notify("All keybinds removed.", 3)
+end)
+MenuGroup:AddButton("Unload", function() Library:Unload() end)
+
+Library:OnUnload(function()
+    grindToken += 1
+    killToken += 1
+    for _, c in ipairs(connections) do c:Disconnect() end
+    pcall(disengage)
+    pcall(restoreUnder)
+    pcall(function() overlay:Destroy() end)
+    pcall(function() hlN:Destroy() hlS:Destroy() end)
+    for _, h in pairs(roleHL) do pcall(function() h:Destroy() end) end
+    destroyRing()
+end)
+
+Library:Notify(IS_MM2 and "FwSerial | Candy loaded (MM2 detected)" or "FwSerial | Candy loaded", 4)
+
+-- PASTE SCRIPT 2 (Candy Collector) HERE
+
+]==]
+
+local CLOSE_AFTER_LOAD = true -- the loader plays its close animation after a script loads
+
+-- =====================================================================
+-- GUI
+-- =====================================================================
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local GuiParent = (gethui and gethui()) or game:GetService("CoreGui")
+
+pcall(function()
+    local old = GuiParent:FindFirstChild("IOSLoader")
+    if old then old:Destroy() end
+end)
+
+local FONT, FONT_BOLD = Enum.Font.Gotham, Enum.Font.GothamBold
+local CARD, ROW = Color3.fromRGB(28, 28, 30), Color3.fromRGB(44, 44, 46)
+local WHITE, GRAY = Color3.fromRGB(255, 255, 255), Color3.fromRGB(142, 142, 147)
+local BLUE, ORANGE = Color3.fromRGB(10, 132, 255), Color3.fromRGB(255, 159, 10)
+local GREEN, RED = Color3.fromRGB(48, 209, 88), Color3.fromRGB(255, 69, 58)
+
+local function make(class, props, parent)
+    local o = Instance.new(class)
+    for k, v in pairs(props) do o[k] = v end
+    o.Parent = parent
+    return o
+end
+local function tween(o, t, props, style, dir)
+    local tw = TweenService:Create(o, TweenInfo.new(t, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out), props)
+    tw:Play()
+    return tw
+end
+local function round(parent, r) return make("UICorner", { CornerRadius = UDim.new(0, r) }, parent) end
+
+local gui = make("ScreenGui", {
+    Name = "IOSLoader", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 500,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+})
+pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
+gui.Parent = GuiParent
+
+-- frosted backdrop: blurs the game behind the loader (removed again when it closes)
+local Lighting = game:GetService("Lighting")
+pcall(function()
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v.Name == "IOSLoaderBlur" then v:Destroy() end
+    end
+end)
+local blur = make("BlurEffect", { Name = "IOSLoaderBlur", Size = 0 }, Lighting)
+
+-- glass card: translucent tint + soft top shine + bright edge highlight
+local card = make("CanvasGroup", {
+    Size = UDim2.fromOffset(310, 280), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+    BackgroundColor3 = Color3.fromRGB(38, 40, 52), BackgroundTransparency = 0.38, BorderSizePixel = 0,
+    GroupTransparency = 1,
+}, gui)
+round(card, 30)
+local cardStroke = make("UIStroke", { Color = WHITE, Transparency = 0.45, Thickness = 1.5 }, card)
+make("UIGradient", {
+    Rotation = 45,
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(0.45, 0.75), NumberSequenceKeypoint.new(1, 0.25),
+    }),
+}, cardStroke)
+local shine = make("Frame", {
+    Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 0,
+}, card)
+make("UIGradient", {
+    Rotation = 90,
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.82), NumberSequenceKeypoint.new(0.35, 0.94), NumberSequenceKeypoint.new(1, 1),
+    }),
+}, shine)
+local cardScale = make("UIScale", { Scale = 0.8 }, card)
+
+-- grabber (iOS sheet handle) - drag the card by the top area
+local header = make("Frame", { Size = UDim2.new(1, 0, 0, 70), BackgroundTransparency = 1, Active = true }, card)
+make("Frame", {
+    AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(40, 5),
+    BackgroundColor3 = Color3.fromRGB(99, 99, 102), BorderSizePixel = 0,
+}, header)
+round(header:FindFirstChildOfClass("Frame"), 3)
+
+make("TextLabel", {
+    Position = UDim2.fromOffset(0, 22), Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, Font = FONT_BOLD,
+    TextSize = 20, TextColor3 = WHITE, Text = "Script Loader",
+}, header)
+make("TextLabel", {
+    Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1, Font = FONT,
+    TextSize = 12, TextColor3 = GRAY, Text = "Choose a script to load",
+}, header)
+
+-- close button (circle with an x, like iOS sheets)
+local closeBtn = make("TextButton", {
+    AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 16), Size = UDim2.fromOffset(28, 28),
+    BackgroundColor3 = Color3.fromRGB(235, 235, 245), BackgroundTransparency = 0.82, BorderSizePixel = 0, Text = "×",
+    Font = FONT_BOLD, TextSize = 20, TextColor3 = Color3.fromRGB(220, 220, 230), AutoButtonColor = false,
+}, card)
+round(closeBtn, 14)
+make("UIStroke", { Color = WHITE, Transparency = 0.7, Thickness = 1 }, closeBtn)
+
+-- status line
+local status = make("TextLabel", {
+    AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16), Size = UDim2.new(1, -32, 0, 18),
+    BackgroundTransparency = 1, Font = FONT, TextSize = 12, TextColor3 = GRAY, Text = "Ready",
+}, card)
+
+-- buttons --------------------------------------------------------------
+local buttons = {}
+local function makeButton(y, title, subtitle, color)
+    local b = make("TextButton", {
+        Position = UDim2.fromOffset(16, y), Size = UDim2.new(1, -32, 0, 64), BackgroundColor3 = color,
+        BackgroundTransparency = 0.32, BorderSizePixel = 0, Text = "", AutoButtonColor = false,
+    }, card)
+    round(b, 20)
+    local bStroke = make("UIStroke", { Color = WHITE, Transparency = 0.5, Thickness = 1.2 }, b)
+    make("UIGradient", {
+        Rotation = 90,
+        Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(1, 0.85) }),
+    }, bStroke)
+    -- glossy highlight on the top half of the button
+    local gloss = make("Frame", {
+        Size = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = WHITE, BackgroundTransparency = 0.88, BorderSizePixel = 0,
+    }, b)
+    round(gloss, 20)
+    make("UIGradient", {
+        Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }),
+    }, gloss)
+    local sc = make("UIScale", { Scale = 1 }, b)
+    make("TextLabel", {
+        Position = UDim2.fromOffset(18, 12), Size = UDim2.new(1, -60, 0, 22), BackgroundTransparency = 1, Font = FONT_BOLD,
+        TextSize = 16, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, Text = title,
+    }, b)
+    make("TextLabel", {
+        Position = UDim2.fromOffset(18, 34), Size = UDim2.new(1, -60, 0, 18), BackgroundTransparency = 1, Font = FONT,
+        TextSize = 12, TextColor3 = Color3.fromRGB(255, 255, 255), TextTransparency = 0.25,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = subtitle,
+    }, b)
+    local chev = make("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(20, 30),
+        BackgroundTransparency = 1, Font = FONT_BOLD, TextSize = 24, TextColor3 = WHITE, TextTransparency = 0.3, Text = "›",
+    }, b)
+    -- hover / press animations
+    b.MouseEnter:Connect(function()
+        tween(b, 0.15, { BackgroundTransparency = 0.18 })
+        tween(chev, 0.2, { Position = UDim2.new(1, -12, 0.5, 0) })
+    end)
+    b.MouseLeave:Connect(function()
+        tween(b, 0.15, { BackgroundTransparency = 0.32 })
+        tween(chev, 0.2, { Position = UDim2.new(1, -16, 0.5, 0) })
+        tween(sc, 0.15, { Scale = 1 })
+    end)
+    b.MouseButton1Down:Connect(function() tween(sc, 0.1, { Scale = 0.96 }) end)
+    b.MouseButton1Up:Connect(function() tween(sc, 0.35, { Scale = 1 }, Enum.EasingStyle.Back) end)
+    table.insert(buttons, b)
+    return b
+end
+
+local GLASS_GRAY = Color3.fromRGB(120, 120, 130)
+local btn1 = makeButton(82, "Load Script 1", "Universal", GLASS_GRAY)
+local btn2 = makeButton(158, "Load Script 2", "Candy Collector", GLASS_GRAY)
+
+closeBtn.MouseEnter:Connect(function() tween(closeBtn, 0.15, { BackgroundTransparency = 0.6, TextColor3 = WHITE }) end)
+closeBtn.MouseLeave:Connect(function() tween(closeBtn, 0.15, { BackgroundTransparency = 0.82, TextColor3 = Color3.fromRGB(220, 220, 230) }) end)
+
+-- =====================================================================
+-- Open / close animations
+-- =====================================================================
+local closing = false
+local function openLoader()
+    tween(blur, 0.6, { Size = 18 })
+    tween(card, 0.35, { GroupTransparency = 0 })
+    tween(cardScale, 0.55, { Scale = 1 }, Enum.EasingStyle.Back)
+    -- buttons slide up one after another
+    for i, b in ipairs(buttons) do
+        local target = b.Position
+        b.Position = target + UDim2.fromOffset(0, 24)
+        task.delay(0.12 + (i - 1) * 0.08, function()
+            tween(b, 0.5, { Position = target }, Enum.EasingStyle.Back)
+        end)
+    end
+end
+
+local function closeLoader()
+    if closing then return end
+    closing = true
+    tween(blur, 0.35, { Size = 0 })
+    tween(card, 0.25, { GroupTransparency = 1 })
+    local tw = tween(cardScale, 0.28, { Scale = 0.85 }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+    tw.Completed:Connect(function()
+        gui:Destroy()
+        task.delay(0.1, function() blur:Destroy() end)
+    end)
+end
+
+closeBtn.MouseButton1Click:Connect(closeLoader)
+
+-- drag by the header
+do
+    local dragging, startInput, startPos
+    header.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging, startInput, startPos = true, i.Position, card.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - startInput
+            card.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- =====================================================================
+-- Loading
+-- =====================================================================
+local function setStatus(text, color)
+    status.Text = text
+    tween(status, 0.2, { TextColor3 = color or GRAY })
+end
+
+local function hasCode(src)
+    return (src:gsub("%-%-[^\n]*", "")):match("%S") ~= nil
+end
+
+local busy = false
+local function load(name, src, url)
+    if busy or closing then return end
+    busy = true
+
+    -- animated "Loading..." dots
+    local spinning = true
+    task.spawn(function()
+        local n = 0
+        while spinning and gui.Parent do
+            n = n % 3 + 1
+            status.Text = "Loading " .. name .. string.rep(".", n)
+            task.wait(0.3)
+        end
+    end)
+    tween(status, 0.2, { TextColor3 = GRAY })
+
+    local ok, err = pcall(function()
+        local code = src
+        if not hasCode(code) then
+            if url ~= "" then
+                code = game:HttpGet(url)
+            else
+                error("no script set for " .. name .. " (paste it into the loader file)")
+            end
+        end
+        local fn, compileErr = loadstring(code)
+        if not fn then error(compileErr) end
+        task.spawn(fn)
+    end)
+
+    spinning = false
+    task.wait(0.35)
+    if ok then
+        setStatus(name .. " loaded ✓", GREEN)
+        if CLOSE_AFTER_LOAD then
+            task.wait(0.8)
+            closeLoader()
+        end
+    else
+        setStatus(tostring(err):sub(1, 60), RED)
+        warn("[Loader] " .. name .. ": " .. tostring(err))
+    end
+    busy = false
+end
+
+btn1.MouseButton1Click:Connect(function() load("Universal", SCRIPT_1, SCRIPT_1_URL) end)
+btn2.MouseButton1Click:Connect(function() load("Candy Collector", SCRIPT_2, SCRIPT_2_URL) end)
+
+openLoader()
